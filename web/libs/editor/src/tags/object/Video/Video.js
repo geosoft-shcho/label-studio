@@ -65,6 +65,7 @@ const Model = types
     errors: [],
     speed: 1,
     ref: React.createRef(),
+    stageRef: React.createRef(),
     frame: 1,
     length: 1,
     drawingRegion: null,

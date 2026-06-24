@@ -291,7 +291,8 @@ export default class Waveform extends React.Component {
       backend: "MediaElement",
       progressColor: this.state.colors.progressColor,
 
-      splitChannels: true,
+      splitChannels:
+        this.props.splitchannels === true || this.props.splitchannels === "true",
       cursorWidth: this.props.cursorWidth,
       cursorColor: this.props.cursorColor,
       barHeight: 1,

@@ -117,7 +117,7 @@ const HtxVideoView = ({ item, store }) => {
 
   const limitCanvasDrawingBoundaries = !store.settings.videoDrawOutside;
   const videoBlockRef = useRef();
-  const stageRef = useRef();
+  const stageRef = item.stageRef;
   const videoContainerRef = useRef();
   const mainContentRef = useRef();
   const [loaded, setLoaded] = useState(false);

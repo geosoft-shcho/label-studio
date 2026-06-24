@@ -146,6 +146,34 @@ const _detect = (region) => {
           })
         : DEFAULT_BBOX;
     }
+    case "videorectangleregion": {
+      const bbox = region.bboxCoordsCanvas;
+      if (!bbox) return { ...DEFAULT_BBOX };
+      const video = region.parent;
+      const stageEl = video?.stageRef?.current;
+      if (!stageEl) {
+        return {
+          x: bbox.left,
+          y: bbox.top,
+          width: bbox.right - bbox.left,
+          height: bbox.bottom - bbox.top,
+        };
+      }
+      const stageBbox = Geometry.getDOMBBox(stageEl.content, true);
+      return stageBbox
+        ? {
+            x: stageBbox.x + bbox.left,
+            y: stageBbox.y + bbox.top,
+            width: bbox.right - bbox.left,
+            height: bbox.bottom - bbox.top,
+          }
+        : {
+            x: bbox.left,
+            y: bbox.top,
+            width: bbox.right - bbox.left,
+            height: bbox.bottom - bbox.top,
+          };
+    }
     default: {
       console.warn(`Unknown region type: ${region.type}`);
       return { ...DEFAULT_BBOX };
