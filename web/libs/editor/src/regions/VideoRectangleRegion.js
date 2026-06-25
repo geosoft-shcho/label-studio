@@ -6,6 +6,8 @@ import Registry from "../core/Registry";
 import { AreaMixin } from "../mixins/AreaMixin";
 import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
+import { keypointsAtFrame as resolveKeypointsAtFrame } from "./videoKeypoints";
+import { mediaBboxToCanvas, mediaPercentToCanvas } from "../tags/object/Video/mediaToCanvas";
 
 const Model = types
   .model("VideoRectangleRegionModel", {
@@ -41,6 +43,22 @@ const Model = types
       return true;
     },
 
+    get bboxTriggers() {
+      const frame = self.parent?.frame || 1;
+      const video = self.parent?.ref?.current;
+
+      return [
+        frame,
+        self.sequence,
+        video?.zoom,
+        video?.pan?.x,
+        video?.pan?.y,
+        video?.width,
+        video?.height,
+        self.keypointsAtFrame,
+      ];
+    },
+
     get bboxCoords() {
       const frame = self.parent?.frame || 1;
       const shape = self.getShape(frame);
@@ -59,32 +77,56 @@ const Model = types
       const bbox = self.bboxCoords;
       if (!bbox) return null;
       const video = self.parent?.ref?.current;
-      if (!video?.videoDimensions) return null;
-      const { width: mediaW, height: mediaH } = video.videoDimensions;
-      const zoom = video.zoom || 1;
-      const pan = video.pan || { x: 0, y: 0 };
-      const viewW = video.width || 0;
-      const viewH = video.height || 0;
-      const scaledW = mediaW * zoom;
-      const scaledH = mediaH * zoom;
-      const panXOverflow = Math.abs(pan.x) >= Math.abs((viewW - scaledW) / 2);
-      const panYOverflow = Math.abs(pan.y) >= Math.abs((viewH - scaledH) / 2);
-      const panXDir = pan.x > 0 ? 1 : -1;
-      const panYDir = pan.y > 0 ? 1 : -1;
-      const panXAdj =
-        (Math.abs(pan.x) - Math.abs((viewW - scaledW) / 2)) * panXDir;
-      const panYAdj =
-        (Math.abs(pan.y) - Math.abs((viewH - scaledH) / 2)) * panYDir;
-      const offsetX = panXOverflow ? panXAdj : 0;
-      const offsetY = panYOverflow ? panYAdj : 0;
-      const baseX = (viewW - scaledW) / 2 + pan.x - offsetX;
-      const baseY = (viewH - scaledH) / 2 + pan.y - offsetY;
+
+      return mediaBboxToCanvas(video, bbox);
+    },
+
+    /** 현재 Video 프레임의 keypoints (미디어 %, faivv POSE sequence). */
+    get keypointsAtFrame() {
+      const frame = self.parent?.frame || 1;
+      if (!self.isInLifespan(frame)) return null;
+
+      return resolveKeypointsAtFrame(self.sequence, frame);
+    },
+
+    getKeypointCoords(keypointName) {
+      const kps = self.keypointsAtFrame;
+      if (!kps) return null;
+
+      return kps.find((k) => k.name === keypointName) ?? null;
+    },
+
+    getKeypointCoordsCanvas(keypointName) {
+      const kp = self.getKeypointCoords(keypointName);
+      if (!kp) return null;
+
+      const video = self.parent?.ref?.current;
+      const pt = mediaPercentToCanvas(video, Number(kp.x), Number(kp.y));
+
+      if (!pt) return null;
+
       return {
-        left: (bbox.left * mediaW) / 100 * zoom + baseX,
-        top: (bbox.top * mediaH) / 100 * zoom + baseY,
-        right: (bbox.right * mediaW) / 100 * zoom + baseX,
-        bottom: (bbox.bottom * mediaH) / 100 * zoom + baseY,
+        x: pt.x,
+        y: pt.y,
+        confidence: Number(kp.confidence) || 0,
       };
+    },
+
+    /** { left_ankle: { x, y, confidence }, ... } canvas px */
+    get keypointsCoordsCanvas() {
+      const kps = self.keypointsAtFrame;
+      const out = {};
+
+      if (!kps) return out;
+
+      kps.forEach((kp) => {
+        if (!kp?.name) return;
+        const canvas = self.getKeypointCoordsCanvas(kp.name);
+
+        if (canvas) out[kp.name] = canvas;
+      });
+
+      return out;
     },
   }))
   .actions((self) => ({
