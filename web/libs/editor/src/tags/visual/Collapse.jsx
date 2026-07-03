@@ -67,6 +67,7 @@ const PanelModel = types.model({
     "timeserieslabels",
     "paragraphs",
     "paragraphlabels",
+    "segmentattachments",
   ]),
 });
 

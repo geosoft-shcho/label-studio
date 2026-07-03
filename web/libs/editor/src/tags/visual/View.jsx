@@ -121,6 +121,7 @@ const Model = types.model({
     "video",
     "videorectangle",
     "timelinelabels",
+    "segmentattachments",
   ]),
 });
 
