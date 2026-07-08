@@ -14,6 +14,8 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/regions/VideoRectangleRegion.js` | `bboxCoords` / `bboxCoordsCanvas`; `keypointsCoordsCanvas` |
 | `web/libs/editor/src/components/InteractiveOverlays/BoundingBox.js` | `videorectangleregion` hit-test bbox |
 | `web/libs/editor/src/components/InteractiveOverlays/NodesConnector.js` | Reactive watcher for video rectangle regions |
+| `web/libs/editor/src/tags/visual/SegmentAttachments.jsx` | Audio 구간 첨부 mount (`SegmentAttachments`) |
+| `web/libs/editor/src/tags/control/SavedSegmentAttachments.jsx` | 저장된 구간 첨부 Control (`SavedSegmentAttachments`, 삭제) |
 
 Build (standalone):
 

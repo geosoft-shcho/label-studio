@@ -68,6 +68,7 @@ const PanelModel = types.model({
     "paragraphs",
     "paragraphlabels",
     "segmentattachments",
+    "savedsegmentattachments",
   ]),
 });
 
