@@ -4,6 +4,7 @@ import { NumberModel } from "./Number";
 import { PairwiseModel } from "./Pairwise";
 import { RankerModel } from "./Ranker";
 import { SavedSegmentAttachmentsModel } from "./SavedSegmentAttachments";
+import { SegmentAttachmentsModel } from "./SegmentAttachments";
 import { RatingModel } from "./Rating";
 import { ShortcutModel } from "./Shortcut";
 import { TaxonomyModel } from "./Taxonomy/Taxonomy";
@@ -38,6 +39,7 @@ export {
   PairwiseModel,
   RankerModel,
   SavedSegmentAttachmentsModel,
+  SegmentAttachmentsModel,
   RatingModel,
   ShortcutModel,
   TaxonomyModel,

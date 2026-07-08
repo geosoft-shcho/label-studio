@@ -4,7 +4,6 @@ import { HeaderModel } from "./Header";
 import { ViewModel } from "./View";
 import { StyleModel } from "./Style";
 import { FilterModel } from "./Filter";
-import { SegmentAttachmentsModel } from "./SegmentAttachments";
 
 export {
   CollapseModel,
@@ -13,5 +12,4 @@ export {
   ViewModel,
   StyleModel,
   FilterModel,
-  SegmentAttachmentsModel,
 };

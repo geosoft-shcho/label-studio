@@ -1,0 +1,135 @@
+.root {
+  margin: 8px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+.rootDragover {
+  border-color: #1890ff;
+  border-style: dashed;
+  background: #e6f4ff;
+  outline: 2px dashed #91caff;
+  outline-offset: -4px;
+}
+
+.header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 8px;
+}
+
+.meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  color: #333;
+}
+
+.itemPending {
+  border-style: dashed;
+  background: #f6ffed;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.name a:hover {
+  text-decoration: underline;
+}
+
+.size {
+  color: #bfbfbf;
+  font-size: 11px;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.badgePending {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.remove {
+  border: none;
+  background: transparent;
+  color: #cf1322;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.remove:hover {
+  color: #a8071a;
+}
+
+.empty {
+  font-size: 12px;
+  color: #bfbfbf;
+  padding: 4px 0;
+}
+
+.actions {
+  margin-top: 10px;
+}
+
+.add {
+  padding: 6px 14px;
+  border: 1px dashed #91caff;
+  border-radius: 6px;
+  background: #fff;
+  color: #1890ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add:hover {
+  background: #e6f4ff;
+}
+
+.add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fileInput {
+  display: none;
+}

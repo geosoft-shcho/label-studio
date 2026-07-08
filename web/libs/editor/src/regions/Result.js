@@ -59,11 +59,13 @@ const Result = types
       "videorectangle",
       "ranker",
       "savedsegmentattachments",
+      "segmentattachments",
     ]),
     // @todo much better to have just a value, not a hash with empty fields
     value: types.model({
       ranker: types.union(types.array(types.string), types.frozen(), types.null),
       savedsegmentattachments: types.maybe(types.frozen()),
+      segmentattachments: types.maybe(types.frozen()),
       datetime: types.maybe(types.string),
       number: types.maybe(types.number),
       rating: types.maybe(types.number),
