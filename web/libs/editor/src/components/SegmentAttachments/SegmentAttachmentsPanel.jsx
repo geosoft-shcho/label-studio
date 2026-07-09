@@ -158,6 +158,18 @@ function SegmentAttachmentsPanel({
       .then((asset) => {
         item.addImportedAsset(regionId, asset);
         setStatusMessage("");
+        try {
+          if (typeof window !== "undefined" && typeof window.faivvFlutterDispatch === "function") {
+            window.faivvFlutterDispatch("onAssetImported", {
+              assetId: asset.assetId || "",
+              fileName: asset.fileName || "",
+              regionId: regionId,
+              source: "external_drop",
+            });
+          }
+        } catch (e) {
+          /* noop */
+        }
       })
       .catch((err) => {
         setStatusMessage(`가져오기 실패: ${String((err && err.message) || err)}`);
