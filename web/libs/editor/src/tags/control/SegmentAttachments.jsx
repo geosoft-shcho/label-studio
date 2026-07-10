@@ -3,6 +3,10 @@ import { inject, observer } from "mobx-react";
 import { destroy, flow, types } from "mobx-state-tree";
 
 import SegmentAttachmentsPanel from "../../components/SegmentAttachments/SegmentAttachmentsPanel";
+import {
+  findSavedSegmentForSelection,
+  savedAttachmentsExcludingBucket,
+} from "../../components/SegmentAttachments/savedAttachmentLookup";
 import Registry from "../../core/Registry";
 import { AnnotationMixin } from "../../mixins/AnnotationMixin";
 import { ReadOnlyControlMixin } from "../../mixins/ReadOnlyMixin";
@@ -17,6 +21,8 @@ import ControlBase from "./Base";
  * @name SegmentAttachments
  * @param {string} name   Control name (`from_name`)
  * @param {string} toName Object tag name (typically `audio`)
+ * @param {boolean} [showPanel] Render attachment panel (`false` when embedded in MultimodalTimeline)
+ * @param {string} [savedAttachmentsFrom] SavedSegmentAttachments control name for per-segment saved list
  */
 const AttachmentModel = types.model("SegmentAttachmentItem", {
   assetId: types.string,
@@ -44,6 +50,8 @@ const RegionBucketModel = types.model("SegmentAttachmentRegionBucket", {
 
 const TagAttrs = types.model({
   toname: types.maybeNull(types.string),
+  showpanel: types.optional(types.boolean, true),
+  savedattachmentsfrom: types.optional(types.string, "saved_segment_attachments"),
 });
 
 /** File objects are kept outside MST (not serializable). */
@@ -137,6 +145,21 @@ const Model = types
     },
     get selectedPending() {
       return self.bucketFor(self.selectedRegionId)?.pendings?.slice() || [];
+    },
+    get savedAttachmentsControl() {
+      const name = (self.savedattachmentsfrom || "saved_segment_attachments").trim();
+      return name ? self.annotation?.names?.get(name) : null;
+    },
+    get selectedSavedSegment() {
+      const meta = self.selectedMeta;
+      return findSavedSegmentForSelection(self.savedAttachmentsControl, {
+        regionId: self.selectedRegionId,
+        start: meta?.start,
+        end: meta?.end,
+      });
+    },
+    get selectedSavedOnlyAttachments() {
+      return savedAttachmentsExcludingBucket(self.selectedSavedSegment, self.selectedPersisted);
     },
     hasPendingUploads() {
       return self.regions.some((r) => (r.pendings || []).length > 0);
@@ -300,6 +323,23 @@ const Model = types
         markDirty();
       },
 
+      removeSavedAttachment(regionId, assetId) {
+        const saved = self.savedAttachmentsControl;
+        if (!saved || typeof saved.removeAttachment !== "function") return;
+        const rid = (regionId || self.selectedSavedSegment?.regionId || self.selectedRegionId || "").trim();
+        const aid = (assetId || "").trim();
+        if (!rid || !aid) return;
+        saved.removeAttachment(rid, aid);
+        try {
+          self.annotation?.setDraftSelected?.(true);
+          if (typeof window !== "undefined" && typeof window.faivvFlutterDispatch === "function") {
+            window.faivvFlutterDispatch("onDirty", { dirty: true });
+          }
+        } catch (e) {
+          /* noop */
+        }
+      },
+
       addImportedAsset(regionId, asset) {
         const rid = (regionId || "").trim();
         if (!rid || !asset?.assetId) return;
@@ -451,6 +491,8 @@ const HtxSegmentAttachments = inject("store")(
       }
     }, [item, selectedRegionId]);
 
+    if (!item.showpanel) return null;
+
     const resolveContentUrl =
       typeof window !== "undefined" &&
       window.FaivvAssetUpload &&
@@ -466,6 +508,8 @@ const HtxSegmentAttachments = inject("store")(
         selectedMeta={item.selectedMeta}
         persisted={item.selectedPersisted}
         pending={item.selectedPending}
+        savedOnly={item.selectedSavedOnlyAttachments}
+        savedSegmentRegionId={item.selectedSavedSegment?.regionId}
         readOnly={item.isReadOnly()}
         resolveContentUrl={resolveContentUrl}
       />

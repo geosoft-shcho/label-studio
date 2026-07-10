@@ -1,0 +1,251 @@
+.multimodalTimeline {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow: hidden;
+  font-size: 12px;
+  color: #262626;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  gap: 8px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.labelChip {
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: #e6f4ff;
+  color: #0958d9;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.labelHint {
+  color: #8c8c8c;
+  font-size: 11px;
+}
+
+.hint {
+  padding: 4px 10px;
+  background: #fffbe6;
+  color: #ad6800;
+  border-bottom: 1px solid #ffe58f;
+  font-size: 11px;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.duration {
+  color: #8c8c8c;
+}
+
+.timelineBody {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.laneLabelsColumn {
+  flex: 0 0 88px;
+  flex-shrink: 0;
+  background: #f5f5f5;
+  border-right: 1px solid #f0f0f0;
+}
+
+.rulerLabelSpacer {
+  height: 22px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.inner {
+  position: relative;
+  min-width: 100%;
+}
+
+.ruler {
+  position: relative;
+  height: 22px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.rulerTick {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-left: 1px solid #f0f0f0;
+  padding-left: 4px;
+  color: #8c8c8c;
+  font-size: 10px;
+  line-height: 22px;
+  pointer-events: none;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ff4d4f;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.lanes {
+  position: relative;
+}
+
+.lane {
+  min-height: 28px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.lane:last-child {
+  border-bottom: none;
+}
+
+.laneLabel {
+  min-height: 28px;
+  padding: 6px 8px;
+  color: #595959;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #f5f5f5;
+  box-sizing: border-box;
+}
+
+.laneLabelsColumn .laneLabel:last-child {
+  border-bottom: none;
+}
+
+.laneTrack {
+  position: relative;
+  min-height: 28px;
+  background: #fff;
+}
+
+.clip {
+  position: absolute;
+  top: 4px;
+  height: 20px;
+  border-radius: 4px;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 20px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.clip:hover {
+  filter: brightness(0.97);
+}
+
+.clipSelected {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 1px #1890ff;
+}
+
+.laneAudio .clip {
+  background: #e6f4ff;
+  color: #0958d9;
+}
+
+.laneSubtitle .clip {
+  background: #f6ffed;
+  color: #389e0d;
+}
+
+.laneObject .clip {
+  background: #f9f0ff;
+  color: #531dab;
+}
+
+.laneSavedAttachment .clip {
+  background: #fff1f0;
+  color: #cf1322;
+}
+
+.laneTrackInteractive {
+  cursor: crosshair;
+}
+
+.clipInteractive {
+  cursor: grab;
+}
+
+.clipDraft {
+  opacity: 0.55;
+  border-style: dashed;
+  pointer-events: none;
+}
+
+.resizeHandleStart,
+.resizeHandleEnd {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+}
+
+.resizeHandleStart {
+  left: 0;
+}
+
+.resizeHandleEnd {
+  right: 0;
+}
+
+.attachments {
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
+}
+
+.attachmentsPanel {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.empty {
+  padding: 8px 10px;
+  color: #8c8c8c;
+  font-style: italic;
+}

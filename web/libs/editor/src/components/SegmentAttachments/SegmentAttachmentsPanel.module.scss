@@ -34,6 +34,18 @@
   gap: 6px;
 }
 
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c8c8c;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.sectionLabel:first-child {
+  margin-top: 0;
+}
+
 .item {
   display: flex;
   align-items: center;
@@ -84,6 +96,11 @@
 .badgePending {
   background: #f6ffed;
   color: #52c41a;
+}
+
+.badgeSaved {
+  background: #fff1f0;
+  color: #cf1322;
 }
 
 .remove {

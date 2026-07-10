@@ -73,6 +73,8 @@ function SegmentAttachmentsPanel({
   selectedMeta,
   persisted,
   pending,
+  savedOnly,
+  savedSegmentRegionId,
   readOnly,
   resolveContentUrl,
   className,
@@ -84,7 +86,7 @@ function SegmentAttachmentsPanel({
   const metaText = (() => {
     if (statusMessage) return statusMessage;
     if (!selectedRegionId) {
-      return "오디오 타임라인에서 구간을 선택하면 파일을 첨부할 수 있습니다.";
+      return "통합 타임라인 또는 오디오 타임라인에서 구간을 선택하면 파일을 첨부할 수 있습니다.";
     }
     const timeText =
       typeof selectedMeta?.start === "number" && typeof selectedMeta?.end === "number"
@@ -96,7 +98,7 @@ function SegmentAttachmentsPanel({
   const onAddClick = () => {
     if (readOnly) return;
     if (!selectedRegionId) {
-      setStatusMessage("먼저 오디오 타임라인에서 구간을 선택하세요.");
+      setStatusMessage("먼저 통합 타임라인 또는 오디오 타임라인에서 구간을 선택하세요.");
       return;
     }
     setStatusMessage("");
@@ -138,7 +140,7 @@ function SegmentAttachmentsPanel({
       return;
     }
     if (!selectedRegionId) {
-      setStatusMessage("먼저 오디오 타임라인에서 구간을 선택하세요.");
+      setStatusMessage("먼저 통합 타임라인 또는 오디오 타임라인에서 구간을 선택하세요.");
       return;
     }
 
@@ -182,7 +184,10 @@ function SegmentAttachmentsPanel({
       ? "첨부 파일이 없습니다."
       : "이 구간에 파일을 첨부하세요.";
 
-  const hasItems = (persisted || []).length > 0 || (pending || []).length > 0;
+  const savedList = savedOnly || [];
+  const hasSessionItems = (persisted || []).length > 0 || (pending || []).length > 0;
+  const hasSavedItems = savedList.length > 0;
+  const hasItems = hasSessionItems || hasSavedItems;
 
   return (
     <div
@@ -200,57 +205,99 @@ function SegmentAttachmentsPanel({
           <div className={styles.empty}>{emptyText}</div>
         ) : (
           <>
-            {(persisted || []).map((a) => {
-              const downloadUrl = resolveDownloadUrl(a, resolveContentUrl);
-              const sizeText = formatSize(a.size);
-              return (
-                <div key={a.assetId} className={styles.item}>
-                  <span className={styles.name}>
-                    {downloadUrl ? (
-                      <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                        {a.fileName || a.assetId}
-                      </a>
-                    ) : (
-                      a.fileName || a.assetId
-                    )}
-                  </span>
-                  {sizeText ? <span className={styles.size}>{sizeText}</span> : null}
-                  <span className={styles.badge}>{a.isNew ? "업로드됨" : "저장됨"}</span>
-                  {!readOnly ? (
-                    <button
-                      type="button"
-                      className={styles.remove}
-                      title="제거"
-                      aria-label="제거"
-                      onClick={() => item.removePersisted(selectedRegionId, a.assetId)}
-                    >
-                      ✕
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-            {(pending || []).map((p) => {
-              const sizeText = formatSize(p.size);
-              return (
-                <div key={p.tempId} className={[styles.item, styles.itemPending].join(" ")}>
-                  <span className={styles.name}>{p.fileName || "file"}</span>
-                  {sizeText ? <span className={styles.size}>{sizeText}</span> : null}
-                  <span className={[styles.badge, styles.badgePending].join(" ")}>대기</span>
-                  {!readOnly ? (
-                    <button
-                      type="button"
-                      className={styles.remove}
-                      title="제거"
-                      aria-label="제거"
-                      onClick={() => item.removePending(selectedRegionId, p.tempId)}
-                    >
-                      ✕
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
+            {hasSessionItems ? (
+              <>
+                {hasSavedItems ? <div className={styles.sectionLabel}>이 구간 첨부</div> : null}
+                {(persisted || []).map((a) => {
+                  const downloadUrl = resolveDownloadUrl(a, resolveContentUrl);
+                  const sizeText = formatSize(a.size);
+                  return (
+                    <div key={a.assetId} className={styles.item}>
+                      <span className={styles.name}>
+                        {downloadUrl ? (
+                          <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                            {a.fileName || a.assetId}
+                          </a>
+                        ) : (
+                          a.fileName || a.assetId
+                        )}
+                      </span>
+                      {sizeText ? <span className={styles.size}>{sizeText}</span> : null}
+                      <span className={styles.badge}>{a.isNew ? "업로드됨" : "저장됨"}</span>
+                      {!readOnly ? (
+                        <button
+                          type="button"
+                          className={styles.remove}
+                          title="제거"
+                          aria-label="제거"
+                          onClick={() => item.removePersisted(selectedRegionId, a.assetId)}
+                        >
+                          ✕
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {(pending || []).map((p) => {
+                  const sizeText = formatSize(p.size);
+                  return (
+                    <div key={p.tempId} className={[styles.item, styles.itemPending].join(" ")}>
+                      <span className={styles.name}>{p.fileName || "file"}</span>
+                      {sizeText ? <span className={styles.size}>{sizeText}</span> : null}
+                      <span className={[styles.badge, styles.badgePending].join(" ")}>대기</span>
+                      {!readOnly ? (
+                        <button
+                          type="button"
+                          className={styles.remove}
+                          title="제거"
+                          aria-label="제거"
+                          onClick={() => item.removePending(selectedRegionId, p.tempId)}
+                        >
+                          ✕
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </>
+            ) : null}
+            {hasSavedItems ? (
+              <>
+                <div className={styles.sectionLabel}>저장된 첨부</div>
+                {savedList.map((a) => {
+                  const downloadUrl = resolveDownloadUrl(a, resolveContentUrl);
+                  const sizeText = formatSize(a.size);
+                  return (
+                    <div key={`saved-${a.assetId}`} className={styles.item}>
+                      <span className={styles.name}>
+                        {downloadUrl ? (
+                          <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                            {a.fileName || a.assetId}
+                          </a>
+                        ) : (
+                          a.fileName || a.assetId
+                        )}
+                      </span>
+                      {sizeText ? <span className={styles.size}>{sizeText}</span> : null}
+                      <span className={[styles.badge, styles.badgeSaved].join(" ")}>저장됨</span>
+                      {!readOnly ? (
+                        <button
+                          type="button"
+                          className={styles.remove}
+                          title="제거"
+                          aria-label="제거"
+                          onClick={() =>
+                            item.removeSavedAttachment(savedSegmentRegionId || selectedRegionId, a.assetId)
+                          }
+                        >
+                          ✕
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </>
+            ) : null}
           </>
         )}
       </div>
@@ -279,6 +326,8 @@ SegmentAttachmentsPanel.propTypes = {
   selectedMeta: PropTypes.object,
   persisted: PropTypes.array,
   pending: PropTypes.array,
+  savedOnly: PropTypes.array,
+  savedSegmentRegionId: PropTypes.string,
   readOnly: PropTypes.bool,
   resolveContentUrl: PropTypes.func,
   className: PropTypes.string,

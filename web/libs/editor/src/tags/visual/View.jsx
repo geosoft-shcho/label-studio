@@ -123,6 +123,7 @@ const Model = types.model({
     "timelinelabels",
     "segmentattachments",
     "savedsegmentattachments",
+    "multimodaltimeline",
   ]),
 });
 

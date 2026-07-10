@@ -17,6 +17,8 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/tags/control/SegmentAttachments.jsx` | 선택 구간 첨부 Control (`SegmentAttachments`, 업로드·삭제) |
 | `web/libs/editor/src/components/SegmentAttachments/` | 선택 구간 첨부 React UI |
 | `web/libs/editor/src/tags/control/SavedSegmentAttachments.jsx` | 저장된 구간 첨부 Control (`SavedSegmentAttachments`, 삭제) |
+| `web/libs/editor/src/tags/control/MultimodalTimeline.jsx` | 멀티모달 통합 타임라인 Control (`MultimodalTimeline`, 구간 생성·선택·첨부 embed) |
+| `web/libs/editor/src/components/MultimodalTimeline/` | 통합 타임라인 React UI |
 
 Build (standalone):
 

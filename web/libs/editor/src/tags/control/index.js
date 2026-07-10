@@ -3,6 +3,7 @@ import { DateTimeModel } from "./DateTime";
 import { NumberModel } from "./Number";
 import { PairwiseModel } from "./Pairwise";
 import { RankerModel } from "./Ranker";
+import { MultimodalTimelineModel } from "./MultimodalTimeline";
 import { SavedSegmentAttachmentsModel } from "./SavedSegmentAttachments";
 import { SegmentAttachmentsModel } from "./SegmentAttachments";
 import { RatingModel } from "./Rating";
@@ -40,6 +41,7 @@ export {
   RankerModel,
   SavedSegmentAttachmentsModel,
   SegmentAttachmentsModel,
+  MultimodalTimelineModel,
   RatingModel,
   ShortcutModel,
   TaxonomyModel,
