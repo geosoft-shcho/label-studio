@@ -22,9 +22,6 @@
       "path": "./tsconfig.spec.json"
     },
     {
-      "path": "./cypress/tsconfig.json"
-    },
-    {
       "path": "./tests/integration/tsconfig.json"
     }
   ],
