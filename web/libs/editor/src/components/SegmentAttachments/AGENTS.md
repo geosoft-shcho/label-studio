@@ -65,6 +65,8 @@ Control인 이유: `toName` 대상 Object(주로 `audio`)에 묶인 result를 �
 ```
 
 faivv-flow: `faivv-embed.js` → `uploadPending` → `onResult.segmentAttachments`.
+저장 성공 후 Flutter는 **LSF 전체 reinit 없이** `commitSegmentAttachmentsSaved` + Saved/세션 첨부 hydrate만 한다
+(미디어·mainLayer 구조 변경 시에만 full reload fallback).
 
 ## 외부 API (window)
 
@@ -73,14 +75,16 @@ faivv-flow: `faivv-embed.js` → `uploadPending` → `onResult.segmentAttachment
 | `FaivvAssetUpload` | pending 업로드, contentUrl |
 | `FaivvAssetImport` | `fileservice://` / `mongoservice://` 드롭 |
 | `faivvFlutterDispatch('onDirty')` | 더티 알림 |
+| `faivvFlutterDispatch('onAssetImported')` | 드롭 import 성공 → Flutter dirty만 (자동 레이어 저장 없음, 툴바 저장 필요) |
 
 ## 수정 시 체크리스트
 
 1. 저장 스키마·mapper 변경 금지
 2. region 매칭: `regionId` 우선, fallback `start`/`end` ±0.05s (`savedAttachmentLookup.js`)
 3. MultimodalTimeline embed props(`savedOnly` 등)와 Panel props 동기화
-4. 재오픈: Flutter `applySegmentAttachments` → `loadFromServer`
-5. **스타일**: CSS 변수만 사용 (hex 금지). Flutter `data-theme` 토큰 따름
+4. 같은 구간에 첨부 레이어가 여러 개면 `findSavedSegmentsForSelection`으로 **전부 병합** 표시 (assetId 중복 제거)
+5. 재오픈: Flutter `applySegmentAttachments` → `loadFromServer`
+6. **스타일**: CSS 변수만 사용 (hex 금지). Flutter `data-theme` 토큰 따름
 
 ## 관련 문서
 

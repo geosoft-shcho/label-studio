@@ -296,7 +296,10 @@ function SegmentAttachmentsPanel({
                           title="제거"
                           aria-label="제거"
                           onClick={() =>
-                            item.removeSavedAttachment(savedSegmentRegionId || selectedRegionId, a.assetId)
+                            item.removeSavedAttachment(
+                              a.savedRegionId || savedSegmentRegionId || selectedRegionId,
+                              a.assetId,
+                            )
                           }
                         >
                           ✕

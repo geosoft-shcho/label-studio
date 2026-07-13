@@ -5,7 +5,8 @@ import { destroy, flow, types } from "mobx-state-tree";
 import SegmentAttachmentsPanel from "../../components/SegmentAttachments/SegmentAttachmentsPanel";
 import {
   findSavedSegmentForSelection,
-  savedAttachmentsExcludingBucket,
+  findSavedSegmentsForSelection,
+  savedAttachmentsExcludingBucketFromSegments,
 } from "../../components/SegmentAttachments/savedAttachmentLookup";
 import Registry from "../../core/Registry";
 import { AnnotationMixin } from "../../mixins/AnnotationMixin";
@@ -158,8 +159,19 @@ const Model = types
         end: meta?.end,
       });
     },
+    get selectedSavedSegments() {
+      const meta = self.selectedMeta;
+      return findSavedSegmentsForSelection(self.savedAttachmentsControl, {
+        regionId: self.selectedRegionId,
+        start: meta?.start,
+        end: meta?.end,
+      });
+    },
     get selectedSavedOnlyAttachments() {
-      return savedAttachmentsExcludingBucket(self.selectedSavedSegment, self.selectedPersisted);
+      return savedAttachmentsExcludingBucketFromSegments(
+        self.selectedSavedSegments,
+        self.selectedPersisted,
+      );
     },
     hasPendingUploads() {
       return self.regions.some((r) => (r.pendings || []).length > 0);
@@ -326,9 +338,19 @@ const Model = types
       removeSavedAttachment(regionId, assetId) {
         const saved = self.savedAttachmentsControl;
         if (!saved || typeof saved.removeAttachment !== "function") return;
-        const rid = (regionId || self.selectedSavedSegment?.regionId || self.selectedRegionId || "").trim();
         const aid = (assetId || "").trim();
-        if (!rid || !aid) return;
+        if (!aid) return;
+
+        let rid = (regionId || "").trim();
+        const ownsAsset = (seg) =>
+          (seg.attachments || []).some((a) => (a.assetId || "").toString().trim() === aid);
+
+        if (!rid || !saved.segments?.find((s) => s.regionId === rid && ownsAsset(s))) {
+          const owner = (self.selectedSavedSegments || []).find(ownsAsset)
+            || (saved.segments || []).find(ownsAsset);
+          rid = (owner?.regionId || self.selectedSavedSegment?.regionId || self.selectedRegionId || "").trim();
+        }
+        if (!rid) return;
         saved.removeAttachment(rid, aid);
         try {
           self.annotation?.setDraftSelected?.(true);
