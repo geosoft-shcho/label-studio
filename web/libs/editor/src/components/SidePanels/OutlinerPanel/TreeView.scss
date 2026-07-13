@@ -229,6 +229,7 @@
   background: none;
   position: relative;
   padding: 0 0 8px;
+  color: var(--sand_900);
 
   &_empty {
     display: none;
@@ -245,13 +246,31 @@
     height: 24px;
     top: 6px;
     right: 8px;
-    opacity: 0.25;
+    opacity: 0.55;
     padding: 0;
+    color: var(--sand_700);
+
+    &:hover {
+      opacity: 1;
+      color: var(--grape_500);
+    }
   }
 
   &_hidden {
-    & .ocr{
+    & .ocr {
       background: var(--sand_0);
+    }
+  }
+
+  textarea,
+  .ant-input {
+    background: var(--sand_0);
+    color: var(--sand_900);
+    border-color: var(--sand_300);
+    caret-color: var(--sand_900);
+
+    &::placeholder {
+      color: var(--sand_500);
     }
   }
 }

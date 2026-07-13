@@ -1,0 +1,163 @@
+/**
+ * Faivv embed theme tokens + component chrome.
+ * Flutter ThemeProvider → FaivvLabelStudio.setTheme → document [data-theme].
+ * Align dark palette with faivv_dashboard_widgets FaivvColors.dark.
+ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+/**
+ * FaivvColors.dark
+ * background #202020 · surface #2B2B2B · accent #60CDFF
+ * border #323232 · typography #FFFFFF · error #FF99A4
+ */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --black-raw: 0 0 0;
+  --white-raw: 255 255 255;
+  --accent_color-raw: 96 205 255;
+  --danger_color-raw: 255 153 164;
+  --danger_color_dimmed: rgb(var(--danger_color-raw) / 50%);
+  --black: rgb(var(--black-raw));
+  --white: rgb(var(--white-raw));
+  --black_2: rgb(var(--white-raw) / 2%);
+  --black_4: rgb(var(--white-raw) / 4%);
+  --black_5: rgb(var(--white-raw) / 5%);
+  --black_10: rgb(var(--white-raw) / 10%);
+  --black_15: rgb(var(--white-raw) / 15%);
+  --black_20: rgb(var(--white-raw) / 20%);
+  --black_40: rgb(var(--white-raw) / 40%);
+  --sand_0: #202020;
+  --sand_100: #2b2b2b;
+  --sand_200: #2c2c2c;
+  --sand_300: #323232;
+  --sand_400: #4a4a4a;
+  --sand_500: #8a8a8a;
+  --sand_600: #b0b0b0;
+  --sand_700: #d0d0d0;
+  --sand_800: #e8e8e8;
+  --sand_900: #ffffff;
+  --plum_500: #cc6fbe;
+  --plum_400: #e37bd3;
+  --plum_200: #5a3a55;
+  --plum_100: #3d2a3a;
+  --plum_0: #2a1f28;
+  --persimmon_0: #3a2420;
+  --persimmon_300: #ff9f89;
+  --persimmon_400: #ff7557;
+  --canteloupe_0: #3a2a1c;
+  --canteloupe_100: #4a3520;
+  --canteloupe_400: #ffa663;
+  --canteloupe_500: #ff8900;
+  --canteloupe_600: #e67b00;
+  --canteloupe_700: #cc6d00;
+  --kale_0: #1e2a1e;
+  --kale_300: #7acec1;
+  --kale_400: #6bb700;
+  --red_1: #3a2024;
+  --red_3: #5c3038;
+  --red_7: #ff99a4;
+  --red_10: #ffc0c8;
+  --grape_0: #0d2a3a;
+  --grape_100: #1a3a4a;
+  --grape_400: #7ad4ff;
+  --grape_500-raw: 96 205 255;
+  --grape_500: rgb(var(--grape_500-raw));
+  --grape_600: #4ab8e6;
+  --grape_700: #3a9fcc;
+  --grape_800: #2a7a99;
+  --primary_link: var(--grape_500);
+  --danger_color: var(--red_7);
+  --danger_color--faded: var(--red_3);
+  --success_color: var(--kale_400);
+  --surface-background: var(--sand_0);
+  --surface-outline-outline: var(--sand_300);
+  --surface-border: var(--sand_300);
+  --surface-surface: var(--sand_100);
+  --surface-base: var(--sand_100);
+  --surface-on: var(--sand_900);
+  --surface-on-dim: var(--sand_600);
+  --surface-bright: var(--grape_0);
+  --surface-border-light: var(--sand_200);
+  --surface-on-surface: var(--sand_700);
+  --surface-icon-on-base: var(--sand_700);
+  --surface-text-dimmer: var(--sand_600);
+  --surface-text-muted: var(--sand_600);
+  --surface-surface-text-base: var(--sand_900);
+  --primary-primary: var(--grape_500);
+  --primary-background: var(--grape_0);
+  --primary-bright-secondary: var(--grape_0);
+  --accent_color: var(--grape_500);
+  --colors-surface-border: var(--sand_300);
+  --colors-surface-icon-on-base: var(--sand_700);
+  --colors-surface-text: var(--sand_700);
+}
+
+/* ant Collapse — follow sand/grape tokens (light + dark via data-theme) */
+.ant-collapse {
+  background-color: var(--sand_100);
+  border-color: var(--sand_300);
+  color: var(--sand_900);
+}
+
+.ant-collapse > .ant-collapse-item {
+  border-color: var(--sand_300);
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header {
+  color: var(--sand_900);
+  background: var(--sand_100);
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header:hover {
+  color: var(--grape_500);
+}
+
+.ant-collapse-content {
+  background-color: var(--sand_0);
+  border-top-color: var(--sand_300);
+  color: var(--sand_900);
+}
+
+.ant-collapse-borderless,
+.ant-collapse-borderless > .ant-collapse-item {
+  background: transparent;
+  border-color: transparent;
+}
+
+.ant-collapse-borderless > .ant-collapse-item > .ant-collapse-content {
+  background: transparent;
+  border-top-color: transparent;
+}
+
+/* Header tag — antd Typography.Title (must stay global; not CSS-module hashed) */
+:global {
+  .lsf-config-header.ant-typography,
+  h1.ant-typography,
+  h2.ant-typography,
+  h3.ant-typography,
+  h4.ant-typography,
+  h5.ant-typography,
+  h1[class*='ant-typography'],
+  h2[class*='ant-typography'],
+  h3[class*='ant-typography'],
+  h4[class*='ant-typography'],
+  h5[class*='ant-typography'] {
+    color: var(--sand_900) !important;
+  }
+
+  .lsf-config-header.ant-typography {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 20px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--sand_200);
+  }
+
+  .lsf-config-header.ant-typography:first-child {
+    margin-top: 4px;
+  }
+}

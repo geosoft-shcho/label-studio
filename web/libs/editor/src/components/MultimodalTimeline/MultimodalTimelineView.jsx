@@ -303,6 +303,7 @@ function MultimodalTimelineView({ item, className }) {
             readOnly={attachmentPanel.readOnly}
             resolveContentUrl={resolveContentUrl}
             className={styles.attachmentsPanel}
+            embedded
           />
         </div>
       ) : null}

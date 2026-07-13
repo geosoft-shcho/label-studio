@@ -1,13 +1,15 @@
+/* Colors via CSS variables — hex forbidden; Flutter data-theme drives light/dark. */
+
 .multimodalTimeline {
   box-sizing: border-box;
   width: 100%;
   margin: 8px 0 12px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--sand_300);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--sand_100);
   overflow: hidden;
   font-size: 12px;
-  color: #262626;
+  color: var(--sand_900);
 }
 
 .header {
@@ -15,8 +17,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid var(--sand_200);
+  background: var(--sand_0);
   gap: 8px;
 }
 
@@ -31,8 +33,8 @@
 .labelChip {
   padding: 1px 8px;
   border-radius: 4px;
-  background: #e6f4ff;
-  color: #0958d9;
+  background: var(--grape_0);
+  color: var(--grape_700);
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
@@ -41,25 +43,26 @@
 }
 
 .labelHint {
-  color: #8c8c8c;
+  color: var(--sand_600);
   font-size: 11px;
 }
 
 .hint {
   padding: 4px 10px;
-  background: #fffbe6;
-  color: #ad6800;
-  border-bottom: 1px solid #ffe58f;
+  background: var(--canteloupe_0);
+  color: var(--canteloupe_700);
+  border-bottom: 1px solid var(--canteloupe_400);
   font-size: 11px;
 }
 
 .title {
   font-weight: 600;
   font-size: 13px;
+  color: var(--sand_900);
 }
 
 .duration {
-  color: #8c8c8c;
+  color: var(--sand_600);
 }
 
 .timelineBody {
@@ -71,14 +74,14 @@
 .laneLabelsColumn {
   flex: 0 0 88px;
   flex-shrink: 0;
-  background: #f5f5f5;
-  border-right: 1px solid #f0f0f0;
+  background: var(--sand_200);
+  border-right: 1px solid var(--sand_200);
 }
 
 .rulerLabelSpacer {
   height: 22px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid var(--sand_200);
+  background: var(--sand_0);
   box-sizing: border-box;
 }
 
@@ -97,17 +100,17 @@
 .ruler {
   position: relative;
   height: 22px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fff;
+  border-bottom: 1px solid var(--sand_200);
+  background: var(--sand_0);
 }
 
 .rulerTick {
   position: absolute;
   top: 0;
   height: 100%;
-  border-left: 1px solid #f0f0f0;
+  border-left: 1px solid var(--sand_200);
   padding-left: 4px;
-  color: #8c8c8c;
+  color: var(--sand_600);
   font-size: 10px;
   line-height: 22px;
   pointer-events: none;
@@ -118,7 +121,7 @@
   top: 0;
   bottom: 0;
   width: 2px;
-  background: #ff4d4f;
+  background: var(--danger_color);
   z-index: 5;
   pointer-events: none;
 }
@@ -129,7 +132,7 @@
 
 .lane {
   min-height: 28px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--sand_200);
 }
 
 .lane:last-child {
@@ -139,11 +142,11 @@
 .laneLabel {
   min-height: 28px;
   padding: 6px 8px;
-  color: #595959;
+  color: var(--sand_700);
   font-weight: 500;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--sand_200);
   box-sizing: border-box;
 }
 
@@ -154,7 +157,7 @@
 .laneTrack {
   position: relative;
   min-height: 28px;
-  background: #fff;
+  background: var(--sand_0);
 }
 
 .clip {
@@ -177,28 +180,28 @@
 }
 
 .clipSelected {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 1px #1890ff;
+  border-color: var(--grape_500);
+  box-shadow: 0 0 0 1px var(--grape_500);
 }
 
 .laneAudio .clip {
-  background: #e6f4ff;
-  color: #0958d9;
+  background: var(--grape_0);
+  color: var(--grape_700);
 }
 
 .laneSubtitle .clip {
-  background: #f6ffed;
-  color: #389e0d;
+  background: var(--kale_0);
+  color: var(--kale_400);
 }
 
 .laneObject .clip {
-  background: #f9f0ff;
-  color: #531dab;
+  background: var(--plum_0);
+  color: var(--plum_500);
 }
 
 .laneSavedAttachment .clip {
-  background: #fff1f0;
-  color: #cf1322;
+  background: var(--persimmon_0);
+  color: var(--red_7);
 }
 
 .laneTrackInteractive {
@@ -234,18 +237,23 @@
 }
 
 .attachments {
-  border-top: 1px solid #f0f0f0;
-  background: #fff;
+  border-top: 1px solid var(--sand_200);
+  background: var(--sand_0);
+  color: var(--sand_900);
 }
 
 .attachmentsPanel {
-  margin: 0;
-  border: none;
-  border-radius: 0;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 10px 12px !important;
+  box-shadow: none !important;
+  color: var(--sand_900) !important;
 }
 
 .empty {
   padding: 8px 10px;
-  color: #8c8c8c;
+  color: var(--sand_600);
   font-style: italic;
 }

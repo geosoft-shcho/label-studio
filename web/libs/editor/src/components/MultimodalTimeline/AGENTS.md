@@ -76,6 +76,8 @@ name/속성 문자열은 다음 세 곳과 **동일**해야 한다.
 3. 오디오 생성 → `laneInteraction` → `audioObject.addRegion` (Labels 미선택 시 생성 실패가 정상)
 4. XML `true`/`false` attr → MST는 `types.boolean` (Tree가 boolean으로 파싱)
 5. 빌드: `MODE=standalone npx nx run editor:build:production` → faivv-flow `ls/` sync
+6. **스타일**: `MultimodalTimelineView.module.scss`는 CSS 변수만 사용 (hex 금지).
+   테마는 Flutter `data-theme` / `faivv-theme.scss` 토큰을 따름
 
 ## 관련 문서
 

@@ -16,8 +16,8 @@
     display: flex;
     padding: 0 8px;
     justify-content: space-between;
-    background: linear-gradient(0deg, var(--hover), var(--hover) 100%), linear-gradient(0deg, #FAFAFA, #FAFAFA 100%);
-    box-shadow: 1px 0 0 rgb(0 0 0 / 5%);
+    background: linear-gradient(0deg, var(--hover), var(--hover) 100%), linear-gradient(0deg, var(--sand_0), var(--sand_0) 100%);
+    box-shadow: 1px 0 0 var(--black_5);
   }
 
   &__data {
@@ -96,12 +96,12 @@
   }
 
   &:hover {
-    --hover: rgb(0 0 0 / 4%);
+    --hover: var(--black_4);
   }
 
   &_selected,
   &_selected:hover {
-    --hover: rgb(0 0 0 / 8%);
+    --hover: var(--black_10);
   }
 }
 
@@ -113,7 +113,7 @@
   cursor: pointer;
   border-radius: 3px;
   background: var(--sand_0);
-  box-shadow: 0 1px 0 rgb(0 0 0 / 10%), 0 0 0 1px rgb(0 0 0 / 15%);
+  box-shadow: 0 1px 0 var(--black_10), 0 0 0 1px var(--black_15);
 
   svg {
     width: 18px;

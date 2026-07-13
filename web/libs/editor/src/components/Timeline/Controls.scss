@@ -31,6 +31,7 @@
       font-size: 16px;
       line-height: 19px;
       text-align: center;
+      color: var(--sand_900);
     }
   }
 
@@ -38,19 +39,39 @@
     display: flex;
     max-width: 310px;
     justify-content: space-between;
+    color: var(--sand_800);
+
+    .button {
+      color: inherit;
+
+      svg path,
+      svg rect {
+        fill: currentColor;
+      }
+
+      svg [stroke] {
+        stroke: currentColor;
+      }
+    }
   }
 
   .button {
     background: none;
+    box-shadow: none;
     width: 36px;
     height: 36px;
+    color: var(--sand_800);
+    border-radius: 4px;
 
     &:hover {
-      box-shadow: inset 0 -1px 0 rgb(0 0 0 / 10%), inset 0 0 0 1px rgb(0 0 0 / 15%);
+      color: var(--sand_900);
+      background: var(--sand_100);
+      box-shadow: inset 0 0 0 1px var(--sand_300);
     }
 
     &:disabled {
-      opacity: 0.3;
+      opacity: 0.35;
+      color: var(--sand_500);
     }
   }
 
@@ -60,7 +81,7 @@
     font-size: 16px;
     border-radius: 4px;
     color: var(--sand_600);
-    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 10%);
+    box-shadow: inset 0 0 0 1px var(--sand_300);
 
     &-section {
       display: flex;

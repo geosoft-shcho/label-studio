@@ -1,30 +1,46 @@
 .root {
   margin: 8px 0 16px;
   padding: 12px 14px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--sand_300);
   border-radius: 8px;
-  background: #fafafa;
-  font-family: -apple-system, system-ui, sans-serif;
+  background: var(--sand_100);
+  font-family: var(--font-sans, -apple-system, system-ui, sans-serif);
+  color: var(--sand_900);
+}
+
+/* MultimodalTimeline embed — flatten card chrome, follow parent surface */
+.rootEmbedded {
+  margin: 0;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .rootDragover {
-  border-color: #1890ff;
+  border-color: var(--grape_500);
   border-style: dashed;
-  background: #e6f4ff;
-  outline: 2px dashed #91caff;
+  background: var(--grape_0);
+  outline: 2px dashed var(--grape_100);
   outline-offset: -4px;
+}
+
+.rootEmbedded.rootDragover {
+  border: 1px dashed var(--grape_500);
+  background: var(--grape_0);
 }
 
 .header {
   font-size: 13px;
   font-weight: 600;
-  color: #262626;
+  color: var(--sand_900);
   margin-bottom: 8px;
 }
 
 .meta {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--sand_600);
   margin-bottom: 8px;
 }
 
@@ -37,7 +53,7 @@
 .sectionLabel {
   font-size: 11px;
   font-weight: 600;
-  color: #8c8c8c;
+  color: var(--sand_600);
   margin-top: 4px;
   margin-bottom: 2px;
 }
@@ -51,16 +67,16 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid #eee;
+  border: 1px solid var(--sand_200);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sand_0);
   font-size: 12px;
-  color: #333;
+  color: var(--sand_800);
 }
 
 .itemPending {
   border-style: dashed;
-  background: #f6ffed;
+  background: var(--kale_0);
 }
 
 .name {
@@ -72,16 +88,17 @@
 }
 
 .name a {
-  color: #1890ff;
+  color: var(--grape_500);
   text-decoration: none;
 }
 
 .name a:hover {
   text-decoration: underline;
+  color: var(--grape_600);
 }
 
 .size {
-  color: #bfbfbf;
+  color: var(--sand_500);
   font-size: 11px;
 }
 
@@ -89,24 +106,24 @@
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 10px;
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--grape_0);
+  color: var(--grape_500);
 }
 
 .badgePending {
-  background: #f6ffed;
-  color: #52c41a;
+  background: var(--kale_0);
+  color: var(--success_color, var(--kale_400));
 }
 
 .badgeSaved {
-  background: #fff1f0;
-  color: #cf1322;
+  background: var(--persimmon_0);
+  color: var(--red_7);
 }
 
 .remove {
   border: none;
   background: transparent;
-  color: #cf1322;
+  color: var(--red_7);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -114,12 +131,13 @@
 }
 
 .remove:hover {
-  color: #a8071a;
+  color: var(--danger_color);
+  opacity: 0.85;
 }
 
 .empty {
   font-size: 12px;
-  color: #bfbfbf;
+  color: var(--sand_500);
   padding: 4px 0;
 }
 
@@ -129,17 +147,18 @@
 
 .add {
   padding: 6px 14px;
-  border: 1px dashed #91caff;
+  border: 1px dashed var(--grape_100);
   border-radius: 6px;
-  background: #fff;
-  color: #1890ff;
+  background: var(--sand_0);
+  color: var(--grape_500);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .add:hover {
-  background: #e6f4ff;
+  background: var(--grape_0);
+  border-color: var(--grape_500);
 }
 
 .add:disabled {

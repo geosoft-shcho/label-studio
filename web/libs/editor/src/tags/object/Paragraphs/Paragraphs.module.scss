@@ -1,7 +1,7 @@
-$border-thin: 1px solid rgb(137 128 152 / 16%);
+$border-thin: 1px solid var(--black_10);
 
 .phrase {
-  background: #e8ffd0;
+  background: var(--kale_0);
   padding: 0.5em;
   border-radius: 5px;
   margin-right: 5px;
@@ -34,7 +34,8 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
 
 .dialoguename {
   font-weight: bold;
-  background: white;
+  background: var(--sand_0);
+  color: var(--sand_900);
   border-radius: 5px;
   padding: 5px;
   margin-right: 10px;
@@ -43,7 +44,8 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
 }
 
 .dialoguename span {
-  background: white !important;
+  background: var(--sand_0) !important;
+  color: inherit;
   padding: 0 !important;
 }
 
@@ -51,6 +53,7 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
   // should contain some style to be added to element
   zoom: 1;
   cursor: text;
+  color: var(--sand_900);
 }
 
 .scroll_container {
@@ -59,6 +62,8 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
   counter-reset: phrase;
   border: $border-thin;
   padding: 8px;
+  background: var(--sand_100);
+  color: var(--sand_900);
 }
 
 .wrapper_header {
@@ -128,10 +133,11 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
       height: 40px;
       padding: 0 12px;
       border: none;
-      border-bottom: 1px solid rgb(0 0 0 / 15%);
+      border-bottom: 1px solid var(--black_15);
       font-size: 14px;
       line-height: 22px;
-      background: #fafafa;
+      background: var(--sand_100);
+      color: var(--sand_900);
       outline: none;
     }
   }
@@ -142,8 +148,8 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
     gap: 4px;
 
     &__item {
-      color: initial;
-      background-color: #fff;
+      color: var(--sand_900);
+      background-color: var(--sand_0);
       display: inline-flex;
       font-weight: 400;
       font-size: 14px;
@@ -184,12 +190,12 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
 
   // highlight play/pause buttons on interactions
   &:active path {
-    fill: #1890ff;
+    fill: var(--grape_500);
   }
 
   // only the circle of play button highlighted
   &:focus path:first-child {
-    fill: #1890ff;
+    fill: var(--grape_500);
   }
 }
 
@@ -208,21 +214,26 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
   &:not(.collapsed) {
     background-color: var(--background-color);
     border-left: 4px solid var(--highlight-color);
-    border-top: 1px solid rgb(137 128 152 / 16%);
-    border-bottom: 1px solid rgb(137 128 152 / 16%);
-    border-right: 1px solid rgb(137 128 152 / 16%);
+    border-top: 1px solid var(--black_10);
+    border-bottom: 1px solid var(--black_10);
+    border-right: 1px solid var(--black_10);
     padding: 8px 12px;
   }
 
   .dialoguename {
     transition: all .1s ease-out;
     background: none;
+    color: inherit;
     font-size: 16px;
     font-style: normal;
     font-weight: 600;
     line-height: 24px;
     letter-spacing: 0.15px;
-    padding: 0
+    padding: 0;
+
+    span {
+      background: none !important;
+    }
   }
 
   .dialoguetext {
@@ -232,7 +243,7 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
     font-weight: 400;
     line-height: 20px;
     letter-spacing: 0.25px;
-    color: #1F1F1F;
+    color: var(--sand_900);
     width: 100%;
     margin-top: 8px;
   }
@@ -249,7 +260,7 @@ $border-thin: 1px solid rgb(137 128 152 / 16%);
       font-weight: 600;
       line-height: 16px;
       letter-spacing: 0.5px;
-      color: #898098;
+      color: var(--sand_500);
     }
   }
 

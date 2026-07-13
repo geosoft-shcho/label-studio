@@ -71,6 +71,7 @@ faivv-flow `requestSave`의 `savedSegmentAttachments` / removed merge와 연동.
 2. regionId 불일치 시 SegmentAttachments 쪽 time fallback은 lookup에서 처리
 3. readOnly면 삭제 버튼 비활성
 4. 빌드 후 faivv-flow `ls/` sync
+5. **스타일**: CSS 변수만 사용 (hex 금지). Flutter `data-theme` 토큰 따름
 
 ## 관련 문서
 

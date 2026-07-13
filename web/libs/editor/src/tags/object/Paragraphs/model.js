@@ -126,13 +126,13 @@ const Model = types
           return {
             phrase: {
               "--highlight-color": color,
-              "--background-color": "#FFF",
+              "--background-color": "var(--sand_0)",
             },
             name: { color },
             inactive: {
               phrase: {
                 "--highlight-color": Utils.Colors.convertToRGBA(color, 0.4),
-                "--background-color": "#FAFAFA",
+                "--background-color": "var(--sand_100)",
               },
               name: { color: Utils.Colors.convertToRGBA(color, 0.9) },
             },

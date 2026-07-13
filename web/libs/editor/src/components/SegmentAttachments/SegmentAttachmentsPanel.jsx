@@ -78,6 +78,7 @@ function SegmentAttachmentsPanel({
   readOnly,
   resolveContentUrl,
   className,
+  embedded,
 }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -191,7 +192,15 @@ function SegmentAttachmentsPanel({
 
   return (
     <div
-      className={[styles.root, dragOver ? styles.rootDragover : "", className].filter(Boolean).join(" ")}
+      className={[
+        styles.root,
+        embedded ? styles.rootEmbedded : "",
+        dragOver ? styles.rootDragover : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      data-faivv-mm-attachments={embedded ? "1" : undefined}
       data-faivv-seg-attach="1"
       onDragEnter={onDragOver}
       onDragOver={onDragOver}
@@ -331,6 +340,7 @@ SegmentAttachmentsPanel.propTypes = {
   readOnly: PropTypes.bool,
   resolveContentUrl: PropTypes.func,
   className: PropTypes.string,
+  embedded: PropTypes.bool,
 };
 
 export default observer(SegmentAttachmentsPanel);

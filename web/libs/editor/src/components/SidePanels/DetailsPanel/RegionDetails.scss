@@ -32,6 +32,14 @@
 
   &__result {
     padding: 0 8px;
+    color: var(--sand_900);
+
+    .ant-input,
+    textarea {
+      background: var(--sand_0);
+      color: var(--sand_900);
+      border-color: var(--sand_300);
+    }
   }
 
   &__meta-text {

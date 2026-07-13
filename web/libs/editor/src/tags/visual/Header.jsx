@@ -49,7 +49,12 @@ const HtxHeader = observer(({ item }) => {
   }
 
   return (
-    <Typography.Title underline={item.underline} level={size} style={style}>
+    <Typography.Title
+      className="lsf-config-header"
+      underline={item.underline}
+      level={size}
+      style={style}
+    >
       {item._value}
     </Typography.Title>
   );

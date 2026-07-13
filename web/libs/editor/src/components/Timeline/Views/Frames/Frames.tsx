@@ -59,17 +59,6 @@ export const Frames: FC<TimelineViewProps> = ({
     onPositionChange,
   });
 
-  const background = useMemo(() => {
-    const bg = [
-      `repeating-linear-gradient(90deg, #fff 1px, #fff ${step - 1}px, rgba(255,255,255,0) ${
-        step - 1
-      }px, rgba(255,255,255,0) ${step + 1}px)`,
-      "linear-gradient(0deg, #FAFAFA, rgba(255,255,255,0) 50%)",
-    ];
-
-    return bg.join(", ");
-  }, [step]);
-
   const setScroll = useCallback(
     ({ left, top }: { left?: number; top?: number }) => {
       if (!length) return;
@@ -399,7 +388,7 @@ export const Frames: FC<TimelineViewProps> = ({
         </Elem>
       </Elem>
 
-      <Elem name="background" style={{ backgroundImage: background }} />
+      <Elem name="background" />
     </Block>
   );
 };

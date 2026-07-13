@@ -20,6 +20,27 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/components/SavedSegmentAttachments/` | 저장된 구간 첨부 React UI — [AGENTS.md](../web/libs/editor/src/components/SavedSegmentAttachments/AGENTS.md) |
 | `web/libs/editor/src/tags/control/MultimodalTimeline.jsx` | 멀티모달 통합 타임라인 Control (`MultimodalTimeline`, 구간 생성·선택·첨부 embed) |
 | `web/libs/editor/src/components/MultimodalTimeline/` | 통합 타임라인 React UI — [AGENTS.md](../web/libs/editor/src/components/MultimodalTimeline/AGENTS.md) |
+| `web/libs/editor/src/assets/styles/faivv-theme.scss` | Flutter `data-theme` dark 토큰 + ant-collapse·Header(Typography) 테마 |
+| `web/libs/editor/src/tags/visual/Header.jsx` | `lsf-config-header` 클래스 — 테마 토큰으로 색 적용 |
+| `web/libs/editor/src/components/Timeline/Views/Frames/Frames.scss` | Video `lsf-timeline-frames` — overlay·`__background` 스트라이프를 sand/black 토큰 |
+| `web/libs/editor/src/components/Timeline/Views/Frames/Frames.tsx` | `__background` 인라인 `#fff`/`#FAFAFA` 제거 → SCSS CSS 변수 |
+| `web/libs/editor/src/components/Timeline/Views/Frames/Keypoints.scss` | 프레임 키포인트 라벨/hover — hex·rgba → sand/black 토큰 |
+| `web/libs/editor/src/tags/object/Paragraphs/Paragraphs.module.scss` | dialogue `dialoguename` 등 — white/hex → sand 토큰 |
+| `web/libs/editor/src/tags/object/Paragraphs/model.js` | newUI phrase `--background-color` → `var(--sand_*)` |
+| `web/libs/editor/src/components/Timeline/Controls.scss` | `main-controls` 버튼·SVG `currentColor` 테마 대응 |
+| `web/libs/editor/src/assets/icons/timeline/*.svg` | `fill="black"` → `currentColor` (다크 모드 아이콘) |
+
+## Theme (Flutter ↔ LSF)
+
+faivv-flow `ThemeProvider` → `FaivvLabelStudio.setTheme('dark'|'light')` →
+`document.documentElement[data-theme]` (+ `faivv-theme-change` 이벤트).
+
+| 규칙 | 내용 |
+|------|------|
+| 토큰 | `--sand_*` / `--grape_*` 등 CSS 변수 사용 |
+| 금지 | 컴포넌트 SCSS에 hex 하드코딩 (`#fff`, `#fafafa` …) |
+| dark | `[data-theme='dark']` 에서 토큰 재정의 (`faivv-theme.scss`) |
+| embed | flow `faivv-ls-theme.css` 가 light 토큰·레이아웃 보정 담당 |
 
 ## Agent 문서
 

@@ -1,13 +1,14 @@
 .root {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, system-ui, sans-serif;
+  font-family: var(--font-sans, -apple-system, system-ui, sans-serif);
+  color: var(--sand_900);
 }
 
 .subheader {
   font-size: 12px;
   font-weight: 600;
-  color: #595959;
+  color: var(--sand_700);
   margin: 0 0 6px;
 }
 
@@ -17,7 +18,7 @@
 
 .groupHeader {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--sand_600);
   margin-bottom: 4px;
 }
 
@@ -32,10 +33,11 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--sand_300);
   border-radius: 6px;
-  background: #fff;
+  background: var(--sand_0);
   font-size: 12px;
+  color: var(--sand_800);
 }
 
 .name {
@@ -47,16 +49,17 @@
 }
 
 .name a {
-  color: #1890ff;
+  color: var(--grape_500);
   text-decoration: none;
 }
 
 .name a:hover {
   text-decoration: underline;
+  color: var(--grape_600);
 }
 
 .size {
-  color: #bfbfbf;
+  color: var(--sand_500);
   font-size: 11px;
 }
 
@@ -64,14 +67,14 @@
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: #f0f0f0;
-  color: #595959;
+  background: var(--sand_200);
+  color: var(--sand_700);
 }
 
 .remove {
   border: none;
   background: transparent;
-  color: #ff4d4f;
+  color: var(--danger_color, var(--red_7));
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -79,11 +82,12 @@
 }
 
 .remove:hover {
-  color: #a8071a;
+  color: var(--red_7);
+  opacity: 0.85;
 }
 
 .empty {
   font-size: 12px;
-  color: #bfbfbf;
+  color: var(--sand_500);
   padding: 4px 0;
 }
