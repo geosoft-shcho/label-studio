@@ -26,6 +26,18 @@ import { VideoRegions } from "./VideoRegions";
 
 const isFFDev2715 = isFF(FF_DEV_2715);
 
+/** FAIVV VideoDebug. 끄기: `localStorage.FAIVV_VIDEO_DEBUG='0'` 또는 `window.FAIVV_VIDEO_DEBUG=false` */
+function isFaivvVideoDebugEnabled() {
+  try {
+    if (typeof window === "undefined") return false;
+    if (window.FAIVV_VIDEO_DEBUG === false) return false;
+    if (window.FAIVV_VIDEO_DEBUG === true) return true;
+    return localStorage.getItem("FAIVV_VIDEO_DEBUG") !== "0";
+  } catch {
+    return true;
+  }
+}
+
 function useZoom(videoDimensions, canvasDimentions, shouldClampPan) {
   const [zoomState, setZoomState] = useState({ zoom: 1, pan: { x: 0, y: 0 } });
   const data = useRef({});
@@ -241,6 +253,16 @@ const HtxVideoView = ({ item, store }) => {
     }
   }, [isFullScreen]);
 
+  // FAIVV: default display is always zoom-to-fit (any media size).
+  useEffect(() => {
+    if (!loaded || !videoDimensions?.ratio) return;
+
+    setZoomAndPan({
+      zoom: videoDimensions.ratio,
+      pan: { x: 0, y: 0 },
+    });
+  }, [loaded, videoDimensions.ratio, videoSize?.[0], videoSize?.[1], setZoomAndPan]);
+
   const onZoomChange = useCallback((e) => {
     if (!e.shiftKey || !stageRef.current) return;
     // because its possible the shiftKey is the modifier, we need to check the appropriate delta
@@ -331,6 +353,7 @@ const HtxVideoView = ({ item, store }) => {
   const handleVideoLoad = useCallback(
     ({ length, videoDimensions }) => {
       setLoaded(true);
+      // default: zoom to fit (not 100%)
       setZoom(videoDimensions.ratio);
       setVideoDimensions(videoDimensions);
       setVideoLength(length);
@@ -338,7 +361,7 @@ const HtxVideoView = ({ item, store }) => {
       item.setLength(length);
       item.setReady(true);
     },
-    [item, setVideoLength],
+    [item, setVideoLength, setZoom],
   );
 
   const handleVideoResize = useCallback((videoDimensions) => {
@@ -493,7 +516,7 @@ const HtxVideoView = ({ item, store }) => {
           <Elem
             name="main"
             ref={videoContainerRef}
-            style={{ height: Number(item.height) }}
+            style={{ height: Number(item.height), position: "relative" }}
             onMouseDown={handlePan}
             onWheel={onZoomChange}
           >
@@ -534,6 +557,31 @@ const HtxVideoView = ({ item, store }) => {
                   onPause={handlePause}
                   onSeeked={item.handleSeek}
                 />
+                {isFaivvVideoDebugEnabled() && loaded && videoDimensions?.width > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 8,
+                      top: 8,
+                      zIndex: 20,
+                      padding: "6px 8px",
+                      borderRadius: 4,
+                      background: "rgba(0,0,0,0.72)",
+                      color: "#fff",
+                      font: "11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace",
+                      pointerEvents: "none",
+                      whiteSpace: "pre",
+                    }}
+                  >
+                    {[
+                      "FAIVV VideoDebug",
+                      `player  ${videoSize[0]}×${videoSize[1]}  (tag height=${item.height})`,
+                      `media   ${videoDimensions.width}×${videoDimensions.height}`,
+                      `fit     ${Number(videoDimensions.ratio).toFixed(3)}  →  ${Math.round(videoDimensions.width * videoDimensions.ratio)}×${Math.round(videoDimensions.height * videoDimensions.ratio)}`,
+                      `zoom    ${Number(zoom).toFixed(3)}  →  ${Math.round(videoDimensions.width * zoom)}×${Math.round(videoDimensions.height * zoom)}`,
+                    ].join("\n")}
+                  </div>
+                )}
               </>
             )}
           </Elem>

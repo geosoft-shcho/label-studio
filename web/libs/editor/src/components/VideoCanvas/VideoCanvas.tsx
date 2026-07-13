@@ -52,8 +52,12 @@ type VideoDimentions = {
 
 export const clampZoom = (value: number) => clamp(value, MIN_ZOOM, MAX_ZOOM);
 
-const zoomRatio = (canvasWidth: number, canvasHeight: number, width: number, height: number) =>
-  Math.min(1, Math.min(canvasWidth / width, canvasHeight / height));
+/** Contain-fit (zoom to fit). May be >1 so small videos still fill the player. */
+const zoomRatio = (canvasWidth: number, canvasHeight: number, width: number, height: number) => {
+  if (!canvasWidth || !canvasHeight || !width || !height) return 1;
+
+  return Math.min(canvasWidth / width, canvasHeight / height);
+};
 
 export interface VideoRef {
   currentFrame: number;
@@ -443,8 +447,8 @@ export const VideoCanvas = memo(
 
     useEffect(() => {
       let isLoaded = false;
-      let loadTimeout: NodeJS.Timeout | undefined = undefined;
-      let timeout: NodeJS.Timeout | undefined = undefined;
+      let loadTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
+      let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
 
       const checkVideoLoaded = () => {
         if (isLoaded) return;

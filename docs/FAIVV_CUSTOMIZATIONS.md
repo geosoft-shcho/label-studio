@@ -7,8 +7,8 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | File | Purpose |
 |------|---------|
 | `web/libs/editor/src/components/Waveform/Waveform.jsx` | Honor `splitchannels` XML attribute (legacy WaveSurfer path) |
-| `web/libs/editor/src/tags/object/Video/Video.js` | Add `stageRef` on video model for pose overlay sync |
-| `web/libs/editor/src/tags/object/Video/HtxVideo.jsx` | Use `item.stageRef` instead of local ref |
+| `web/libs/editor/src/components/VideoCanvas/VideoCanvas.tsx` | `zoomRatio` contain-fit 확대 허용 (기본 zoom to fit용) |
+| `web/libs/editor/src/tags/object/Video/HtxVideo.jsx` | stageRef; 기본 zoom to fit; FAIVV VideoDebug 오버레이 (`FAIVV_VIDEO_DEBUG=0` 로 끔) |
 | `web/libs/editor/src/tags/object/Video/mediaToCanvas.js` | Media % → canvas px (zoom/pan); shared by bbox & keypoints |
 | `web/libs/editor/src/regions/videoKeypoints.js` | Keypoint interpolation on VideoRectangle `sequence` |
 | `web/libs/editor/src/regions/VideoRectangleRegion.js` | `bboxCoords` / `bboxCoordsCanvas`; `keypointsCoordsCanvas` |
