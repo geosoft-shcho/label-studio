@@ -1,0 +1,85 @@
+# MultimodalTimeline — Agent / 개발 가이드
+
+## 한 줄 목적
+
+영상편집기 스타일로 **오디오 구간 · 자막 · 비디오 객체 · 저장 첨부**를 한 strip에 표시하고, 같은 화면에서 구간 선택·생성·첨부까지 조작하는 **오케스트레이터 UI**다.
+
+저장 포맷·mapper·`layer_persist`는 건드리지 않는다. 데이터는 기존 Control/Object에 **위임**한다.
+
+## 태그 종류
+
+| 구분 | 값 |
+|------|-----|
+| XML 태그 | `<MultimodalTimeline>` |
+| MST type | `multimodaltimeline` |
+| 분류 | **Control** (`tags/control/MultimodalTimeline.jsx`) |
+| React UI | 이 폴더 (`MultimodalTimelineView`) |
+
+Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으로 기존 태그를 참조·오케스트레이션한다.
+
+## 파일 맵
+
+| 파일 | 역할 |
+|------|------|
+| `MultimodalTimelineView.jsx` | 레인·눈금자·playhead·드래그·첨부 embed |
+| `MultimodalTimelineView.module.scss` | 라벨 고정열 + 스크롤 트랙 레이아웃 |
+| `utils/regionBridge.js` | annotation/Control → lane clip 집계 |
+| `utils/mediaSync.js` | AudioUltra + Video playhead/duration 구독 |
+| `utils/laneInteraction.js` | 오디오 lane 드래그 생성·리사이즈 (AudioUltra 위임) |
+| `utils/objectLifespan.js` | VideoRectangle lifespan → 초 단위 clip |
+
+관련 Control 태그: `../../tags/control/MultimodalTimeline.jsx`
+
+## Lane 구성 (기본)
+
+`showLanes="audio,subtitle,object,saved_attachment"`
+
+| lane | 데이터 출처 | 비고 |
+|------|-------------|------|
+| `audio` | `audioregion` | 드래그 생성·리사이즈 |
+| `subtitle` | `transcript` TextArea perRegion | 표시·선택 |
+| `object` | `VideoRectangle` lifespan | `objectLifespan.js` |
+| `saved_attachment` | `SavedSegmentAttachments` | 서버 첨부 전용 레이어 |
+
+`attachment` lane(세션 bucket 요약)은 embed `SegmentAttachmentsPanel`로 대체되어 **기본 showLanes에서 제외**.
+
+## XML 계약 (faivv-flow와 동기)
+
+```xml
+<MultimodalTimeline name="mm_timeline" toName="audio" videoToName="video"
+  audioSegmentsFrom="audio_segments" transcriptFrom="transcript"
+  attachmentsFrom="audio_evidence"
+  savedAttachmentsFrom="saved_segment_attachments"
+  videoObjectsFrom="box"
+  height="280" embedAttachments="true"
+  showLanes="audio,subtitle,object,saved_attachment" />
+```
+
+name/속성 문자열은 다음 세 곳과 **동일**해야 한다.
+
+- `faivv-flow/lib/.../label_studio_v2_config.dart`
+- `faivv-flow/web/tools/label-studio-v2/faivv-lsf-config.js`
+- 이 Control의 TagAttrs
+
+## UI vs 위임
+
+| 새로 만든 UI | 기존 태그 위임 |
+|--------------|----------------|
+| strip, lane 라벨 열, playhead | Audio / Video seek·재생 |
+| clip 렌더·드래그 미리보기 | Labels(`audio_segments`) 선택값 |
+| 첨부 패널 embed | SegmentAttachments / SavedSegmentAttachments |
+
+## 수정 시 체크리스트
+
+1. lane/clip 로직 → `regionBridge` / `objectLifespan` 우선
+2. 미디어 시각 → `mediaSync`만 수정 (DOM 직접 폴링 추가 금지 권장)
+3. 오디오 생성 → `laneInteraction` → `audioObject.addRegion` (Labels 미선택 시 생성 실패가 정상)
+4. XML `true`/`false` attr → MST는 `types.boolean` (Tree가 boolean으로 파싱)
+5. 빌드: `MODE=standalone npx nx run editor:build:production` → faivv-flow `ls/` sync
+
+## 관련 문서
+
+- [SegmentAttachments/AGENTS.md](../SegmentAttachments/AGENTS.md)
+- [SavedSegmentAttachments/AGENTS.md](../SavedSegmentAttachments/AGENTS.md)
+- [docs/AGENTS_FAIVV_NEW_TAG.md](../../../../../../docs/AGENTS_FAIVV_NEW_TAG.md) — 새 태그 object/control/view 선택
+- [docs/FAIVV_CUSTOMIZATIONS.md](../../../../../../docs/FAIVV_CUSTOMIZATIONS.md)

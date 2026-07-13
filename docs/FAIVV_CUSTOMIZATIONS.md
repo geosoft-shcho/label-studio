@@ -15,10 +15,19 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/components/InteractiveOverlays/BoundingBox.js` | `videorectangleregion` hit-test bbox |
 | `web/libs/editor/src/components/InteractiveOverlays/NodesConnector.js` | Reactive watcher for video rectangle regions |
 | `web/libs/editor/src/tags/control/SegmentAttachments.jsx` | 선택 구간 첨부 Control (`SegmentAttachments`, 업로드·삭제) |
-| `web/libs/editor/src/components/SegmentAttachments/` | 선택 구간 첨부 React UI |
+| `web/libs/editor/src/components/SegmentAttachments/` | 선택 구간 첨부 React UI — [AGENTS.md](../web/libs/editor/src/components/SegmentAttachments/AGENTS.md) |
 | `web/libs/editor/src/tags/control/SavedSegmentAttachments.jsx` | 저장된 구간 첨부 Control (`SavedSegmentAttachments`, 삭제) |
+| `web/libs/editor/src/components/SavedSegmentAttachments/` | 저장된 구간 첨부 React UI — [AGENTS.md](../web/libs/editor/src/components/SavedSegmentAttachments/AGENTS.md) |
 | `web/libs/editor/src/tags/control/MultimodalTimeline.jsx` | 멀티모달 통합 타임라인 Control (`MultimodalTimeline`, 구간 생성·선택·첨부 embed) |
-| `web/libs/editor/src/components/MultimodalTimeline/` | 통합 타임라인 React UI |
+| `web/libs/editor/src/components/MultimodalTimeline/` | 통합 타임라인 React UI — [AGENTS.md](../web/libs/editor/src/components/MultimodalTimeline/AGENTS.md) |
+
+## Agent 문서
+
+| 문서 | 용도 |
+|------|------|
+| [AGENTS_FAIVV_NEW_TAG.md](./AGENTS_FAIVV_NEW_TAG.md) | 새 태그 추가 시 **object / control / view** 선택·구현 순서 |
+| `.cursor/rules/faivv-lsf-new-tag.mdc` | 태그·관련 컴포넌트 편집 시 agent 규칙 |
+| `.cursor/rules/faivv-multimodal-attachments.mdc` | MultimodalTimeline·첨부 폴더 편집 시 agent 규칙 |
 
 Build (standalone):
 
