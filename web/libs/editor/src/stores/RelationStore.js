@@ -202,6 +202,45 @@ const RelationStore = types
       self.relations = [];
     },
 
+    /**
+     * 저장된 relation마다 node1 / node2를 조회
+     * 없거나(null) MST에서 이미 죽은 노드면 깨진 관계로 분류
+     * 조회 중 예외가 나도 깨진 것으로 처리
+     * 깨진 것만 deleteRelation (실패 시 리스트에서 강제 제거)
+     * 제거 개수를 반환
+     * 즉, 연결할 region이 없는 관계만 청소한다.
+     */
+    pruneBrokenRelations() {
+      const broken = [];
+
+      self.relations.forEach((rl) => {
+        try {
+          const n1 = rl.node1;
+          const n2 = rl.node2;
+          if (!n1 || !n2 || !isAlive(n1) || !isAlive(n2)) {
+            broken.push(rl);
+          }
+        } catch (e) {
+          broken.push(rl);
+        }
+      });
+
+      broken.forEach((rl) => {
+        try {
+          self.deleteRelation(rl);
+        } catch (e) {
+          try {
+            self.relations = self.relations.filter((r) => r !== rl && r.id !== rl.id);
+            destroy(rl);
+          } catch (e2) {
+            /* ignore */
+          }
+        }
+      });
+
+      return broken.length;
+    },
+
     serialize() {
       return self.relations.map((r) => {
         const s = {
