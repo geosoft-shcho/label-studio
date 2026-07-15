@@ -1,19 +1,12 @@
 ---
-description: Faivv MultimodalTimeline / 구간첨부 컴포넌트 수정 시 폴더 AGENTS.md 준수
+description: MultimodalTimeline / 구간첨부 — AGENTS는 agents-guide 서브에이전트에 위임
 globs: web/libs/editor/src/components/MultimodalTimeline/**/*,web/libs/editor/src/components/SegmentAttachments/**/*,web/libs/editor/src/components/SavedSegmentAttachments/**/*,web/libs/editor/src/tags/control/MultimodalTimeline.jsx,web/libs/editor/src/tags/control/SegmentAttachments.jsx,web/libs/editor/src/tags/control/SavedSegmentAttachments.jsx
 alwaysApply: false
 ---
 
 # Faivv 통합 타임라인 · 구간 첨부
 
-작업 전 해당 폴더 `AGENTS.md`를 읽는다.
+작업 전 **`agents-guide` 서브에이전트**에 위임해 해당 폴더 `AGENTS.md`를 확인한다.
 
-| 영역 | 문서 |
-|------|------|
-| 통합 타임라인 | `web/libs/editor/src/components/MultimodalTimeline/AGENTS.md` |
-| 구간 첨부 | `web/libs/editor/src/components/SegmentAttachments/AGENTS.md` |
-| 저장 첨부 | `web/libs/editor/src/components/SavedSegmentAttachments/AGENTS.md` |
-
-- MultimodalTimeline은 **Control 오케스트레이터** — Audio/Video/Labels/첨부 태그에 위임.
-- SegmentAttachments / SavedSegmentAttachments **exportPayload 스키마 유지**.
-- 새 태그 종류 선택: `docs/AGENTS_FAIVV_NEW_TAG.md`.
+- MultimodalTimeline = Control 오케스트레이터
+- SegmentAttachments / SavedSegmentAttachments = exportPayload 스키마 유지

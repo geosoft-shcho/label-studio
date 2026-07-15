@@ -1,23 +1,16 @@
 ---
-description: Faivv LSF fork — 새 태그 추가 시 object/control/view 선택 후 구현
+description: Faivv LSF — 새 태그/컴포넌트 (상세 AGENTS는 agents-guide 서브에이전트)
 globs: web/libs/editor/src/tags/**/*,web/libs/editor/src/components/MultimodalTimeline/**/*,web/libs/editor/src/components/SegmentAttachments/**/*,web/libs/editor/src/components/SavedSegmentAttachments/**/*
 alwaysApply: false
 ---
 
 # Faivv LSF — 새 태그 / 컴포넌트
 
-구현·수정 **전에** 반드시:
+구현·수정 전 **`agents-guide` 서브에이전트**에 위임한다 (`docs/AGENTS_FAIVV_NEW_TAG.md` · 폴더 `AGENTS.md`).
 
-1. [docs/AGENTS_FAIVV_NEW_TAG.md](docs/AGENTS_FAIVV_NEW_TAG.md)의 **object / control / view 결정 트리**로 종류를 고른다.
-2. 해당 feature 폴더에 `AGENTS.md`가 있으면 읽고 따른다.
-   - `web/libs/editor/src/components/MultimodalTimeline/AGENTS.md`
-   - `web/libs/editor/src/components/SegmentAttachments/AGENTS.md`
-   - `web/libs/editor/src/components/SavedSegmentAttachments/AGENTS.md`
-3. 커스텀 목록: [docs/FAIVV_CUSTOMIZATIONS.md](docs/FAIVV_CUSTOMIZATIONS.md)
+## 금지·주의 (요약)
 
-## 금지·주의
-
-- 저장 스키마 / faivv-flow `layer_persist` 무단 변경 금지 (오케스트레이션 UI는 기존 Control에 위임).
-- XML `"true"`/`"false"` → MST `types.boolean` (string 타입 사용 금지).
-- Control을 View children에 넣으려면 `tags/visual/View.jsx` union에 type 추가.
-- 빌드: `MODE=standalone npx nx run editor:build:production` 후 faivv-flow `web/tools/label-studio-v2/ls/` sync.
+- 저장 스키마 / faivv-flow `layer_persist` 무단 변경 금지
+- XML `"true"`/`"false"` → MST `types.boolean`
+- Control을 View children에 넣으려면 `tags/visual/View.jsx` union에 type 추가
+- 빌드: `MODE=standalone npx nx run editor:build:production` 후 faivv-flow `web/tools/label-studio-v2/ls/` sync
