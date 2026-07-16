@@ -5,7 +5,9 @@
 import {
   collectVideoObjectRegions,
   objectLifespanClips,
+  regionMatchesVideoObjectControls,
   videoRegionColor,
+  videoRegionControlName,
   videoRegionLabel,
 } from "./objectLifespan";
 import { readDurationSec } from "./mediaSync";
@@ -180,15 +182,25 @@ export function collectSavedAttachmentLaneClips(savedControl) {
   return clips;
 }
 
-export function collectVideoObjectLaneClips(annotation, videoObject, videoObjectsFromName) {
+export function collectVideoObjectLaneClips(
+  annotation,
+  videoObject,
+  videoObjectsFromName,
+  options = {},
+) {
   const clips = [];
   if (!annotation || !videoObject) return clips;
 
+  const lane = options.lane || "object";
+  const sourcePrefix = options.sourcePrefix || "";
+  const sourceKind = options.sourceKind || (lane === "pose_object" ? "pose" : "manual");
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
   const regions = collectVideoObjectRegions(videoObject, annotation);
 
   regions.forEach((region) => {
+    if (!regionMatchesVideoObjectControls(region, videoObjectsFromName)) return;
+
     const label = videoRegionLabel(region);
     const color = videoRegionColor(region);
     const spans = objectLifespanClips(region, videoObject, fps, durationSec);
@@ -209,19 +221,22 @@ export function collectVideoObjectLaneClips(annotation, videoObject, videoObject
     spans.forEach((span) => {
       const clipLabel =
         spans.length > 1 ? `${label} (${span.spanIndex + 1})` : label;
+      const displayLabel = sourcePrefix ? `${sourcePrefix} · ${clipLabel}` : clipLabel;
       clips.push({
-        id: `${region.id}::span${span.spanIndex}`,
+        id: `${region.id}::${lane}::span${span.spanIndex}`,
         regionId: region.id,
-        lane: "object",
+        lane,
         start: span.start,
         end: span.end,
-        label: clipLabel,
+        label: displayLabel,
         meta: {
           objectLabel: label,
           color,
           frameRange: [span.startFrame, span.endFrame],
           spanIndex: span.spanIndex,
           extendsToEnd: span.extendsToEnd,
+          sourceKind,
+          controlName: videoRegionControlName(region),
         },
         region,
       });
@@ -232,25 +247,94 @@ export function collectVideoObjectLaneClips(annotation, videoObject, videoObject
   return clips;
 }
 
+function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
+  const byRegion = new Map();
+  clips.forEach((clip) => {
+    const regionId = String(clip.regionId || clip.region?.id || clip.id);
+    const current = byRegion.get(regionId) || [];
+    current.push(clip);
+    byRegion.set(regionId, current);
+  });
+
+  const rows = [...byRegion.entries()].map(([regionId, regionClips]) => {
+    regionClips.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+    return {
+      regionId,
+      clips: regionClips,
+      objectLabel: regionClips[0]?.meta?.objectLabel || "Object",
+      start: regionClips[0]?.start ?? 0,
+    };
+  });
+  rows.sort((a, b) => a.start - b.start || a.regionId.localeCompare(b.regionId));
+
+  const labelCounts = new Map();
+  rows.forEach((row) => {
+    labelCounts.set(row.objectLabel, (labelCounts.get(row.objectLabel) || 0) + 1);
+  });
+
+  return rows.map((row) => {
+    const duplicateSuffix =
+      labelCounts.get(row.objectLabel) > 1 ? ` · ${row.regionId.slice(0, 4)}` : "";
+    const laneLabel = `${sourceLabel} · ${row.objectLabel}${duplicateSuffix}`;
+    row.clips.forEach((clip) => {
+      clip.meta = {
+        ...clip.meta,
+        laneKind,
+        laneLabel,
+      };
+    });
+    return [`${laneKind}:${row.regionId}`, row.clips];
+  });
+}
+
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
   const audioClips = collectAudioLaneClips(annotation, item.audioSegmentsControl);
+  const manualObjectClips = collectVideoObjectLaneClips(
+    annotation,
+    item.videoObject,
+    item.videoobjectsfrom,
+    {
+      lane: "object",
+      sourcePrefix: "수동",
+      sourceKind: "manual",
+    },
+  );
+  const poseObjectClips = collectVideoObjectLaneClips(
+    annotation,
+    item.videoObject,
+    item.poseobjectsfrom || "pose_box",
+    {
+      lane: "pose_object",
+      sourcePrefix: "포즈",
+      sourceKind: "pose",
+    },
+  );
   const lanes = {
     audio: audioClips,
     subtitle: collectSubtitleLaneClips(annotation, item.transcriptControl, audioClips),
     attachment: collectAttachmentLaneClips(item.attachmentsControl),
-    object: collectVideoObjectLaneClips(annotation, item.videoObject, item.videoobjectsfrom),
     saved_attachment: collectSavedAttachmentLaneClips(item.savedAttachmentsControl),
   };
 
-  const enabled = (item.showlanes || "audio,subtitle,object,saved_attachment")
+  const enabled = (item.showlanes || "audio,subtitle,object,pose_object,saved_attachment")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
   const laneClips = {};
   enabled.forEach((key) => {
-    if (lanes[key]) laneClips[key] = lanes[key];
+    if (key === "object") {
+      videoObjectLaneEntries(manualObjectClips, "object", "수동").forEach(([laneKey, clips]) => {
+        laneClips[laneKey] = clips;
+      });
+    } else if (key === "pose_object") {
+      videoObjectLaneEntries(poseObjectClips, "pose_object", "포즈").forEach(([laneKey, clips]) => {
+        laneClips[laneKey] = clips;
+      });
+    } else if (lanes[key]) {
+      laneClips[key] = lanes[key];
+    }
   });
 
   return laneClips;

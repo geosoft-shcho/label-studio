@@ -15,7 +15,8 @@ import styles from "./MultimodalTimelineView.module.scss";
 const LANE_LABELS = {
   audio: "오디오 구간",
   subtitle: "자막",
-  object: "객체",
+  object: "수동 객체",
+  pose_object: "포즈 객체",
   saved_attachment: "저장 첨부",
 };
 
@@ -23,6 +24,7 @@ const LANE_ROW_CLASS = {
   audio: styles.laneAudio,
   subtitle: styles.laneSubtitle,
   object: styles.laneObject,
+  pose_object: styles.lanePoseObject,
   saved_attachment: styles.laneSavedAttachment,
 };
 
@@ -53,7 +55,7 @@ function MultimodalTimelineView({ item, className }) {
   const dragCleanupRef = useRef(null);
 
   const laneClips = item.laneClips || {};
-  const laneKeys = laneKeysFromClips(laneClips);
+  const laneRows = timelineRowsFromClips(laneClips);
   const height = Number(item.height) || 200;
   const readOnly = typeof item.isReadOnly === "function" ? item.isReadOnly() : false;
 
@@ -218,7 +220,7 @@ function MultimodalTimelineView({ item, className }) {
       ? window.FaivvAssetUpload.resolveContentUrl.bind(window.FaivvAssetUpload)
       : null;
 
-  if (!resolvedDuration && laneKeys.length === 0) {
+  if (!resolvedDuration && laneRows.length === 0) {
     return (
       <div className={[styles.multimodalTimeline, className].filter(Boolean).join(" ")} style={{ minHeight: height }}>
         <div className={styles.empty}>미디어가 로드되면 통합 타임라인이 표시됩니다.</div>
@@ -251,9 +253,9 @@ function MultimodalTimelineView({ item, className }) {
       <div className={styles.timelineBody}>
         <div className={styles.laneLabelsColumn} aria-hidden="true">
           <div className={styles.rulerLabelSpacer} />
-          {laneKeys.map((laneKey) => (
-            <div key={laneKey} className={styles.laneLabel}>
-              {LANE_LABELS[laneKey] || laneKey}
+          {laneRows.map((row) => (
+            <div key={row.key} className={styles.laneLabel} title={row.label}>
+              {row.label}
             </div>
           ))}
         </div>
@@ -270,19 +272,20 @@ function MultimodalTimelineView({ item, className }) {
 
             <div className={styles.lanes}>
               <div className={styles.playhead} style={{ left: playheadLeft }} />
-              {laneKeys.map((laneKey) => (
+              {laneRows.map((row) => (
                 <LaneRow
-                  key={laneKey}
-                  laneKey={laneKey}
-                  clips={laneClips[laneKey] || []}
+                  key={row.key}
+                  laneKey={row.key}
+                  laneKind={row.kind}
+                  clips={row.clips}
                   trackWidth={trackWidth}
                   pxPerSec={pxPerSec}
                   selectedId={item.selectedRegionId}
                   readOnly={readOnly}
-                  draftSpan={laneKey === "audio" ? draftSpan : null}
+                  draftSpan={row.kind === "audio" ? draftSpan : null}
                   onClipClick={onClipClick}
-                  onAudioTrackMouseDown={laneKey === "audio" ? beginAudioDraw : undefined}
-                  onAudioClipMouseDown={laneKey === "audio" ? onAudioClipMouseDown : undefined}
+                  onAudioTrackMouseDown={row.kind === "audio" ? beginAudioDraw : undefined}
+                  onAudioClipMouseDown={row.kind === "audio" ? onAudioClipMouseDown : undefined}
                 />
               ))}
             </div>
@@ -311,13 +314,33 @@ function MultimodalTimelineView({ item, className }) {
   );
 }
 
-function laneKeysFromClips(laneClips) {
-  const order = ["audio", "subtitle", "object", "saved_attachment"];
-  return order.filter((k) => Array.isArray(laneClips[k]));
+function timelineRowsFromClips(laneClips) {
+  const order = ["audio", "subtitle", "object", "pose_object", "saved_attachment"];
+  const orderIndex = new Map(order.map((kind, index) => [kind, index]));
+  return Object.entries(laneClips)
+    .filter(([, clips]) => Array.isArray(clips))
+    .map(([key, clips]) => {
+      const kind = key.split(":")[0];
+      const firstClip = clips[0];
+      return {
+        key,
+        kind,
+        clips,
+        label: firstClip?.meta?.laneLabel || LANE_LABELS[kind] || kind,
+        start: firstClip?.start ?? 0,
+        regionId: firstClip?.regionId || "",
+      };
+    })
+    .sort((a, b) => {
+      const kindOrder = (orderIndex.get(a.kind) ?? order.length) - (orderIndex.get(b.kind) ?? order.length);
+      if (kindOrder !== 0) return kindOrder;
+      return a.start - b.start || a.regionId.localeCompare(b.regionId);
+    });
 }
 
 function LaneRow({
   laneKey,
+  laneKind,
   clips,
   trackWidth,
   pxPerSec,
@@ -328,14 +351,14 @@ function LaneRow({
   onAudioTrackMouseDown,
   onAudioClipMouseDown,
 }) {
-  const laneClass = LANE_ROW_CLASS[laneKey] || "";
-  const isAudioLane = laneKey === "audio";
+  const laneClass = LANE_ROW_CLASS[laneKind] || "";
+  const isAudioLane = laneKind === "audio";
 
   const renderClip = (clip, options = {}) => {
     const { draft = false } = options;
     const width = Math.max((clip.end - clip.start) * pxPerSec, 6);
     const left = clip.start * pxPerSec;
-    const isObjectLane = laneKey === "object";
+    const isObjectLane = laneKind === "object" || laneKind === "pose_object";
     const selected = isObjectLane
       ? !!(clip.region?.selected || clip.region?.highlighted || clip.region?.inSelection)
       : !!(selectedId && (clip.regionId === selectedId || clip.id === selectedId));
@@ -385,6 +408,9 @@ function LaneRow({
         ) : null}
         {clip.label}
         {clip.meta?.attachmentCount ? ` (📎${clip.meta.attachmentCount})` : ""}
+        {isObjectLane && clip.meta?.controlName ? (
+          <span className={styles.clipSourceBadge}>{clip.meta.controlName}</span>
+        ) : null}
       </div>
     );
   };
@@ -436,6 +462,7 @@ function LaneRow({
 
 LaneRow.propTypes = {
   laneKey: PropTypes.string.isRequired,
+  laneKind: PropTypes.string.isRequired,
   clips: PropTypes.array.isRequired,
   trackWidth: PropTypes.number.isRequired,
   pxPerSec: PropTypes.number.isRequired,

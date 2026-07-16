@@ -26,22 +26,35 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 | `utils/regionBridge.js` | annotation/Control → lane clip 집계 |
 | `utils/mediaSync.js` | AudioUltra + Video playhead/duration 구독 |
 | `utils/laneInteraction.js` | 오디오 lane 드래그 생성·리사이즈 (AudioUltra 위임) |
-| `utils/objectLifespan.js` | VideoRectangle lifespan → 초 단위 clip |
+| `utils/objectLifespan.js` | VideoRectangle lifespan → 초 단위 clip; `controlNameOf`로 MST `from_name.name` 해석 |
 
 관련 Control 태그: `../../tags/control/MultimodalTimeline.jsx`
 
 ## Lane 구성 (기본)
 
-`showLanes="audio,subtitle,object,saved_attachment"`
+`showLanes="audio,subtitle,object,pose_object,saved_attachment"`
 
 | lane | 데이터 출처 | 비고 |
 |------|-------------|------|
 | `audio` | `audioregion` | 드래그 생성·리사이즈 |
 | `subtitle` | `transcript` TextArea perRegion | 표시·선택 |
-| `object` | `VideoRectangle` lifespan | `objectLifespan.js` |
+| `object` | `videoObjectsFrom` (`box`) | 수동 VideoRectangle 종류 플래그 → region마다 한 행 |
+| `pose_object` | `poseObjectsFrom` (`pose_box`) | 포즈 추론 VideoRectangle 종류 플래그 → region마다 한 행 |
 | `saved_attachment` | `SavedSegmentAttachments` | 서버 첨부 전용 레이어 |
 
 `attachment` lane(세션 bucket 요약)은 embed `SegmentAttachmentsPanel`로 대체되어 **기본 showLanes에서 제외**.
+
+`object`와 `pose_object`는 고정 단일 행이 아니다. `collectAllLaneClips`가
+`object:<regionId>` / `pose_object:<regionId>` 키로 전개하며, 한 region의
+multi-span clip은 같은 행에 유지한다. 같은 라벨이 여러 개면 행 라벨에 region id
+앞 4자를 붙여 구분한다.
+
+추론 완료 후 발견되는 `Person p1` 같은 instance 라벨은
+`Labels.replaceLabelValues()`/`ensureLabelValue()`로 `pose_labels`에 먼저 동기화한
+뒤 region을 hydrate한다. replace 추론에서는 기본 목록을 실제 결과 목록으로
+교체하고, append 경로에서는 누락된 정확한 라벨만 추가한다.
+등록되지 않은 라벨을 첫 번째 기본 라벨로 대체하면 타임라인 행 구분도 손실되므로
+silent fallback을 추가하지 않는다.
 
 ## XML 계약 (faivv-flow와 동기)
 
@@ -51,8 +64,9 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
   attachmentsFrom="audio_evidence"
   savedAttachmentsFrom="saved_segment_attachments"
   videoObjectsFrom="box"
+  poseObjectsFrom="pose_box"
   height="280" embedAttachments="true"
-  showLanes="audio,subtitle,object,saved_attachment" />
+  showLanes="audio,subtitle,object,pose_object,saved_attachment" />
 ```
 
 name/속성 문자열은 다음 세 곳과 **동일**해야 한다.

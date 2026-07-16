@@ -72,7 +72,7 @@
 }
 
 .laneLabelsColumn {
-  flex: 0 0 88px;
+  flex: 0 0 144px;
   flex-shrink: 0;
   background: var(--sand_200);
   border-right: 1px solid var(--sand_200);
@@ -140,12 +140,16 @@
 }
 
 .laneLabel {
+  height: 28px;
   min-height: 28px;
   padding: 6px 8px;
   color: var(--sand_700);
   font-weight: 500;
   display: flex;
   align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   border-bottom: 1px solid var(--sand_200);
   box-sizing: border-box;
 }
@@ -197,6 +201,26 @@
 .laneObject .clip {
   background: var(--plum_0);
   color: var(--plum_500);
+  border-style: solid;
+}
+
+.lanePoseObject .clip {
+  background: var(--grape_0);
+  color: var(--grape_700);
+  border-style: dashed;
+}
+
+.clipSourceBadge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--sand_0);
+  color: var(--sand_700);
+  font-size: 9px;
+  line-height: 14px;
+  vertical-align: middle;
+  opacity: 0.92;
 }
 
 .laneSavedAttachment .clip {

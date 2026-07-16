@@ -110,6 +110,51 @@ const Model = LabelMixin.views((self) => ({
     return true;
   },
 })).actions((self) => ({
+  /**
+   * API hydrate 시 config 생성 이후 발견된 정확한 라벨을 안전하게 등록한다.
+   * 첫 라벨로 암묵 fallback하지 않고 VideoRectangle result label을 보존하기 위한
+   * faivv fork 확장점이다.
+   */
+  ensureLabelValue(value, background = defaultStyle.fillcolor) {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    if (!normalized) return null;
+    const existing = self.findLabel(normalized);
+    if (existing) return existing;
+
+    self.children.push({
+      type: "label",
+      value: normalized,
+      background,
+    });
+    self.annotation?.setupHotKeys?.();
+    self.needsUpdate?.();
+    return self.findLabel(normalized);
+  },
+
+  replaceLabelValues(values, background = defaultStyle.fillcolor) {
+    const normalized = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const label = typeof value === "string" ? value.trim() : "";
+      if (label && !normalized.includes(label)) normalized.push(label);
+    });
+    if (!normalized.length) return [];
+
+    for (let i = self.children.length - 1; i >= 0; i--) {
+      const child = self.children[i];
+      if (child?.type === "label" && !child.isEmpty) self.children.splice(i, 1);
+    }
+    normalized.forEach((value) => {
+      self.children.push({
+        type: "label",
+        value,
+        background,
+      });
+    });
+    self.annotation?.setupHotKeys?.();
+    self.needsUpdate?.();
+    return normalized.map((value) => self.findLabel(value)).filter(Boolean);
+  },
+
   afterCreate() {
     if (self.allowempty) {
       let empty = self.findLabel(null);

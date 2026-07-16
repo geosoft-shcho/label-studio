@@ -21,7 +21,7 @@ import ControlBase from "./Base";
  * <MultimodalTimeline name="mm_timeline" toName="audio" videoToName="video"
  *   audioSegmentsFrom="audio_segments" transcriptFrom="transcript"
  *   attachmentsFrom="audio_evidence" savedAttachmentsFrom="saved_segment_attachments"
- *   videoObjectsFrom="box" height="200" />
+ *   videoObjectsFrom="box" poseObjectsFrom="pose_box" height="200" />
  *
  * @name MultimodalTimeline
  * @param {string} name Control name
@@ -31,7 +31,8 @@ import ControlBase from "./Base";
  * @param {string} [transcriptFrom] TextArea perRegion for subtitles
  * @param {string} [attachmentsFrom] SegmentAttachments control name
  * @param {string} [savedAttachmentsFrom] SavedSegmentAttachments control name
- * @param {string} [videoObjectsFrom] VideoRectangle control name
+ * @param {string} [videoObjectsFrom] VideoRectangle control for manual objects (`box`)
+ * @param {string} [poseObjectsFrom] VideoRectangle control for pose inference (`pose_box`)
  * @param {string} [height] Strip min height in px
  * @param {string} [showLanes] Comma-separated lane keys to show
  * @param {boolean} [embedAttachments] Embed SegmentAttachments panel under timeline
@@ -44,8 +45,9 @@ const TagAttrs = types.model({
   attachmentsfrom: types.optional(types.string, "audio_evidence"),
   savedattachmentsfrom: types.optional(types.string, "saved_segment_attachments"),
   videoobjectsfrom: types.optional(types.string, "box"),
+  poseobjectsfrom: types.optional(types.string, "pose_box"),
   height: types.optional(types.string, "200"),
-  showlanes: types.optional(types.string, "audio,subtitle,object,saved_attachment"),
+  showlanes: types.optional(types.string, "audio,subtitle,object,pose_object,saved_attachment"),
   embedattachments: types.optional(types.boolean, true),
 });
 
@@ -167,7 +169,7 @@ const Model = types
         self.seekTo(clip.start);
       }
 
-      if (clip.lane === "object" && clip.region) {
+      if ((clip.lane === "object" || clip.lane === "pose_object") && clip.region) {
         ann.regionStore.unselectAll();
         ann.selectArea(clip.region);
         const video = self.videoObject;

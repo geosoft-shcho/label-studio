@@ -211,6 +211,51 @@ export function videoRegionColor(region) {
   }
 }
 
+/** LSF Result.from_name 은 MST reference — 문자열 비교 시 `.name` 사용. */
+export function controlNameOf(fromName) {
+  if (!fromName) return "";
+  if (typeof fromName === "string") return fromName.trim();
+  try {
+    if (typeof fromName.name === "string" && fromName.name.trim()) {
+      return fromName.name.trim();
+    }
+  } catch (e) {
+    /* noop */
+  }
+  return "";
+}
+
+export function videoRegionControlName(region) {
+  try {
+    const results = region.results || [];
+    for (let i = 0; i < results.length; i++) {
+      const name = controlNameOf(results[i]?.from_name);
+      if (name) return name;
+    }
+    if (region.parent?.name) return String(region.parent.name);
+    if (region.tag?.name) return String(region.tag.name);
+  } catch (e) {
+    /* noop */
+  }
+  return "";
+}
+
+export function parseVideoObjectControlNames(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((name) => String(name).trim()).filter(Boolean);
+  }
+  return String(raw || "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+export function regionMatchesVideoObjectControls(region, controlNames) {
+  const filters = parseVideoObjectControlNames(controlNames);
+  if (!filters.length) return true;
+  return filters.includes(videoRegionControlName(region));
+}
+
 export function collectVideoObjectRegions(videoObject, annotation) {
   const out = [];
   const seen = new Set();
