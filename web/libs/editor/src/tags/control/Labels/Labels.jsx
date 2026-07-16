@@ -121,9 +121,13 @@ const Model = LabelMixin.views((self) => ({
     const existing = self.findLabel(normalized);
     if (existing) return existing;
 
+    // UI는 `value`가 아니라 `_value`를 렌더한다 (Label.jsx).
+    // config 파싱 경로는 ProcessAttrs.updateValue가 _value를 채우지만,
+    // 동적 push는 updateValue를 타지 않으므로 _value를 같이 넣는다.
     self.children.push({
       type: "label",
       value: normalized,
+      _value: normalized,
       background,
     });
     self.annotation?.setupHotKeys?.();
@@ -147,6 +151,7 @@ const Model = LabelMixin.views((self) => ({
       self.children.push({
         type: "label",
         value,
+        _value: value,
         background,
       });
     });

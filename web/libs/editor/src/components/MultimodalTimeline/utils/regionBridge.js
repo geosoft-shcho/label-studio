@@ -194,6 +194,8 @@ export function collectVideoObjectLaneClips(
   const lane = options.lane || "object";
   const sourcePrefix = options.sourcePrefix || "";
   const sourceKind = options.sourceKind || (lane === "pose_object" ? "pose" : "manual");
+  // 포즈는 실구간만 (영상 끝 연장 금지). 수동 box 는 기존 LSF Frames UX 유지.
+  const extendLastToVideoEnd = options.extendLastToVideoEnd ?? sourceKind !== "pose";
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
   const regions = collectVideoObjectRegions(videoObject, annotation);
@@ -203,7 +205,9 @@ export function collectVideoObjectLaneClips(
 
     const label = videoRegionLabel(region);
     const color = videoRegionColor(region);
-    const spans = objectLifespanClips(region, videoObject, fps, durationSec);
+    const spans = objectLifespanClips(region, videoObject, fps, durationSec, {
+      extendLastToVideoEnd,
+    });
 
     if (!spans.length) {
       const fallback = objectSpanSec(region, fps);
@@ -237,6 +241,7 @@ export function collectVideoObjectLaneClips(
           extendsToEnd: span.extendsToEnd,
           sourceKind,
           controlName: videoRegionControlName(region),
+          fps,
         },
         region,
       });

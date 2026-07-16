@@ -3,6 +3,7 @@ import { observer } from "mobx-react";
 import PropTypes from "prop-types";
 
 import SegmentAttachmentsPanel from "../SegmentAttachments/SegmentAttachmentsPanel";
+import PoseKeypointsRow from "./PoseKeypointsRow";
 import {
   bindDocumentDrag,
   pxToSec,
@@ -50,6 +51,8 @@ function MultimodalTimelineView({ item, className }) {
   const [duration, setDuration] = useState(0);
   const [draftSpan, setDraftSpan] = useState(null);
   const [hint, setHint] = useState("");
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const scrollRef = useRef(null);
   const lastAutoScrollRef = useRef(0);
   const dragCleanupRef = useRef(null);
@@ -100,6 +103,28 @@ function MultimodalTimelineView({ item, className }) {
   }, [resolvedDuration, pxPerSec]);
 
   const playheadLeft = playhead * pxPerSec;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+
+    const syncViewport = () => {
+      setScrollLeft(el.scrollLeft);
+      setViewportWidth(el.clientWidth);
+    };
+
+    syncViewport();
+    el.addEventListener("scroll", syncViewport, { passive: true });
+    let ro = null;
+    if (typeof ResizeObserver === "function") {
+      ro = new ResizeObserver(syncViewport);
+      ro.observe(el);
+    }
+    return () => {
+      el.removeEventListener("scroll", syncViewport);
+      ro?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -254,7 +279,16 @@ function MultimodalTimelineView({ item, className }) {
         <div className={styles.laneLabelsColumn} aria-hidden="true">
           <div className={styles.rulerLabelSpacer} />
           {laneRows.map((row) => (
-            <div key={row.key} className={styles.laneLabel} title={row.label}>
+            <div
+              key={row.key}
+              className={[
+                styles.laneLabel,
+                row.kind === "object" || row.kind === "pose_object" ? styles.laneLabelKeypoints : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              title={row.label}
+            >
               {row.label}
             </div>
           ))}
@@ -280,6 +314,8 @@ function MultimodalTimelineView({ item, className }) {
                   clips={row.clips}
                   trackWidth={trackWidth}
                   pxPerSec={pxPerSec}
+                  scrollLeft={scrollLeft}
+                  viewportWidth={viewportWidth}
                   selectedId={item.selectedRegionId}
                   readOnly={readOnly}
                   draftSpan={row.kind === "audio" ? draftSpan : null}
@@ -344,6 +380,8 @@ function LaneRow({
   clips,
   trackWidth,
   pxPerSec,
+  scrollLeft,
+  viewportWidth,
   selectedId,
   readOnly,
   draftSpan,
@@ -353,27 +391,14 @@ function LaneRow({
 }) {
   const laneClass = LANE_ROW_CLASS[laneKind] || "";
   const isAudioLane = laneKind === "audio";
+  const isKeypointsLane = laneKind === "object" || laneKind === "pose_object";
 
   const renderClip = (clip, options = {}) => {
     const { draft = false } = options;
     const width = Math.max((clip.end - clip.start) * pxPerSec, 6);
     const left = clip.start * pxPerSec;
-    const isObjectLane = laneKind === "object" || laneKind === "pose_object";
-    const selected = isObjectLane
-      ? !!(clip.region?.selected || clip.region?.highlighted || clip.region?.inSelection)
-      : !!(selectedId && (clip.regionId === selectedId || clip.id === selectedId));
-    const color = clip.meta?.color;
-    const clipStyle = {
-      left,
-      width,
-      ...(isObjectLane && color
-        ? {
-            background: color,
-            borderColor: color,
-            color: "#fff",
-          }
-        : {}),
-    };
+    const selected = !!(selectedId && (clip.regionId === selectedId || clip.id === selectedId));
+    const clipStyle = { left, width };
 
     return (
       <div
@@ -408,9 +433,6 @@ function LaneRow({
         ) : null}
         {clip.label}
         {clip.meta?.attachmentCount ? ` (📎${clip.meta.attachmentCount})` : ""}
-        {isObjectLane && clip.meta?.controlName ? (
-          <span className={styles.clipSourceBadge}>{clip.meta.controlName}</span>
-        ) : null}
       </div>
     );
   };
@@ -426,7 +448,7 @@ function LaneRow({
       : null;
 
   return (
-    <div className={[styles.lane, laneClass].filter(Boolean).join(" ")}>
+    <div className={[styles.lane, isKeypointsLane ? styles.laneKeypoints : "", laneClass].filter(Boolean).join(" ")}>
       <div
         className={[styles.laneTrack, isAudioLane && !readOnly ? styles.laneTrackInteractive : ""]
           .filter(Boolean)
@@ -441,20 +463,33 @@ function LaneRow({
             : undefined
         }
       >
-        {clips.map((clip) => {
-          if (draftSpan?.regionId && clip.region?.id === draftSpan.regionId) {
-            return renderClip(
-              {
-                ...clip,
-                start: draftSpan.start,
-                end: draftSpan.end,
-              },
-              { draft: true },
-            );
-          }
-          return renderClip(clip);
-        })}
-        {draftClip && !draftSpan?.regionId ? renderClip(draftClip, { draft: true }) : null}
+        {isKeypointsLane ? (
+          <PoseKeypointsRow
+            clips={clips}
+            pxPerSec={pxPerSec}
+            scrollLeft={scrollLeft}
+            viewportWidth={viewportWidth}
+            selectedId={selectedId}
+            onClipClick={onClipClick}
+          />
+        ) : (
+          <>
+            {clips.map((clip) => {
+              if (draftSpan?.regionId && clip.region?.id === draftSpan.regionId) {
+                return renderClip(
+                  {
+                    ...clip,
+                    start: draftSpan.start,
+                    end: draftSpan.end,
+                  },
+                  { draft: true },
+                );
+              }
+              return renderClip(clip);
+            })}
+            {draftClip && !draftSpan?.regionId ? renderClip(draftClip, { draft: true }) : null}
+          </>
+        )}
       </div>
     </div>
   );
@@ -466,6 +501,8 @@ LaneRow.propTypes = {
   clips: PropTypes.array.isRequired,
   trackWidth: PropTypes.number.isRequired,
   pxPerSec: PropTypes.number.isRequired,
+  scrollLeft: PropTypes.number,
+  viewportWidth: PropTypes.number,
   selectedId: PropTypes.string,
   readOnly: PropTypes.bool,
   draftSpan: PropTypes.object,

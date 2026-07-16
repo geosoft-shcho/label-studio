@@ -22,11 +22,12 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 | 파일 | 역할 |
 |------|------|
 | `MultimodalTimelineView.jsx` | 레인·눈금자·playhead·드래그·첨부 embed |
+| `PoseKeypointsRow.jsx` | object/pose 레인 lifespan+키프레임 점 (초×pxPerSec, Frames Keypoints 대응) |
 | `MultimodalTimelineView.module.scss` | 라벨 고정열 + 스크롤 트랙 레이아웃 |
 | `utils/regionBridge.js` | annotation/Control → lane clip 집계 |
 | `utils/mediaSync.js` | AudioUltra + Video playhead/duration 구독 |
 | `utils/laneInteraction.js` | 오디오 lane 드래그 생성·리사이즈 (AudioUltra 위임) |
-| `utils/objectLifespan.js` | VideoRectangle lifespan → 초 단위 clip; `controlNameOf`로 MST `from_name.name` 해석 |
+| `utils/objectLifespan.js` | VideoRectangle lifespan → 초 단위 clip; pose는 last-span 영상끝 연장 안 함 |
 
 관련 Control 태그: `../../tags/control/MultimodalTimeline.jsx`
 
@@ -48,6 +49,10 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 `object:<regionId>` / `pose_object:<regionId>` 키로 전개하며, 한 region의
 multi-span clip은 같은 행에 유지한다. 같은 라벨이 여러 개면 행 라벨에 region id
 앞 4자를 붙여 구분한다.
+
+표시는 박스 clip이 아니라 `PoseKeypointsRow`(Frames `lsf-keypoints`와 동일 개념):
+lifespan 막대 + `sequence.frame/fps` 키프레임 점. `time` 필드는 쓰지 않는다.
+pose는 `extendLastToVideoEnd=false`로 실구간만 그린다. 점은 뷰포트 컬링·간격 샘플링.
 
 추론 완료 후 발견되는 `Person p1` 같은 instance 라벨은
 `Labels.replaceLabelValues()`/`ensureLabelValue()`로 `pose_labels`에 먼저 동기화한

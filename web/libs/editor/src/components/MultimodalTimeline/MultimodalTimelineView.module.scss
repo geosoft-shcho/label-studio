@@ -164,6 +164,58 @@
   background: var(--sand_0);
 }
 
+/* Frames `lsf-keypoints` 와 동일한 lifespan+point (초 좌표) */
+.laneKeypoints {
+  min-height: 24px;
+}
+
+.laneKeypoints .laneTrack {
+  min-height: 24px;
+}
+
+.laneLabelKeypoints {
+  height: 24px;
+  min-height: 24px;
+  /* 세로 padding 이 height 24 안에서 텍스트를 잘라내지 않도록 */
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 11px;
+  line-height: 24px;
+}
+
+.keypointsTrack {
+  position: relative;
+  height: 24px;
+  width: 100%;
+}
+
+.keypointsLifespan {
+  position: absolute;
+  top: 2px;
+  height: 20px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--lifespan-color, var(--grape_500)) 40%, transparent);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.keypointsLifespanSelected {
+  box-shadow: 0 0 0 1px var(--grape_500);
+}
+
+.keypointsPoint {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  margin-left: -1.5px;
+  transform: translateY(-50%);
+  background: var(--point-color, var(--grape_700));
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .clip {
   position: absolute;
   top: 4px;

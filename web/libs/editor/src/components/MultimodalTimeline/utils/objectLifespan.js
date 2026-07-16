@@ -111,7 +111,7 @@ export function lifespanRangesByFrame(region, totalFrames) {
   return ranges;
 }
 
-function lifespansFromKeyframes(sequence, fps, totalFrames) {
+function lifespansFromKeyframes(sequence, totalFrames, { extendLastToVideoEnd = true } = {}) {
   const sorted = [...sequence]
     .filter((k) => typeof k?.frame === "number")
     .sort((a, b) => a.frame - b.frame);
@@ -126,7 +126,9 @@ function lifespansFromKeyframes(sequence, fps, totalFrames) {
     const startFrame = span.start;
     let endFrame = span.points[span.points.length - 1]?.frame ?? startFrame;
 
-    if (isLast && span.enabled !== false) {
+    // 수동 VideoRectangle UX: 마지막 enabled span 을 영상 끝까지 연장.
+    // 포즈 추론은 실구간(first~last keyframe)만 유지.
+    if (extendLastToVideoEnd && isLast && span.enabled !== false) {
       endFrame = totalFrames;
     }
 
@@ -138,7 +140,8 @@ function lifespansFromKeyframes(sequence, fps, totalFrames) {
   });
 }
 
-export function objectLifespanRanges(region, videoObject, fps, durationSec) {
+export function objectLifespanRanges(region, videoObject, fps, durationSec, options = {}) {
+  const extendLastToVideoEnd = options.extendLastToVideoEnd !== false;
   const totalFrames = videoTotalFrames(videoObject, fps, durationSec);
 
   if (typeof region.isInLifespan === "function") {
@@ -155,27 +158,65 @@ export function objectLifespanRanges(region, videoObject, fps, durationSec) {
   const sequence = normalizeRegionSequence(region);
 
   if (sequence.length) {
-    const fromKeyframes = lifespansFromKeyframes(sequence, fps, totalFrames);
+    const fromKeyframes = lifespansFromKeyframes(sequence, totalFrames, {
+      extendLastToVideoEnd,
+    });
     if (fromKeyframes.length) return fromKeyframes;
   }
 
   return [];
 }
 
-export function objectLifespanClips(region, videoObject, fps, durationSec) {
-  const ranges = objectLifespanRanges(region, videoObject, fps, durationSec);
+export function objectLifespanClips(region, videoObject, fps, durationSec, options = {}) {
+  const ranges = objectLifespanRanges(region, videoObject, fps, durationSec, options);
+  const duration =
+    typeof durationSec === "number" && Number.isFinite(durationSec) && durationSec > 0
+      ? durationSec
+      : null;
+
   return ranges.map((range, index) => {
-    const start = frameToSec(range.startFrame, fps);
-    const end = frameToSec(range.endFrame + 1, fps);
+    let start = frameToSec(range.startFrame, fps);
+    let end = frameToSec(range.endFrame + 1, fps);
+    if (duration != null) {
+      start = Math.max(0, Math.min(start, duration));
+      end = Math.max(start + 0.04, Math.min(end, duration));
+    } else {
+      end = Math.max(start + 0.04, end);
+    }
     return {
       start,
-      end: Math.max(start + 0.04, end),
+      end,
       startFrame: range.startFrame,
       endFrame: range.endFrame,
       spanIndex: index,
-      extendsToEnd: range.isLast === true,
+      extendsToEnd: options.extendLastToVideoEnd !== false && range.isLast === true,
     };
   });
+}
+
+/** sequence keyframes → 초 좌표 (time 필드 무시, frame/fps만 사용). */
+export function keyframesSecInSpan(region, startFrame, endFrame, fps) {
+  if (!region || !(fps > 0)) return [];
+  const sequence = normalizeRegionSequence(region);
+  if (!sequence.length) return [];
+
+  const minF = typeof startFrame === "number" ? startFrame : -Infinity;
+  const maxF = typeof endFrame === "number" ? endFrame : Infinity;
+  const out = [];
+  const seen = new Set();
+
+  for (let i = 0; i < sequence.length; i++) {
+    const kf = sequence[i];
+    if (!kf || typeof kf.frame !== "number") continue;
+    if (kf.enabled === false) continue;
+    if (kf.frame < minF || kf.frame > maxF) continue;
+    if (seen.has(kf.frame)) continue;
+    seen.add(kf.frame);
+    out.push(kf.frame / fps);
+  }
+
+  out.sort((a, b) => a - b);
+  return out;
 }
 
 export function videoRegionLabel(region) {
