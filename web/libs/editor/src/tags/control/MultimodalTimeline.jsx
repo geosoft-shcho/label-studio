@@ -15,11 +15,14 @@ import { ReadOnlyControlMixin } from "../../mixins/ReadOnlyMixin";
 import ControlBase from "./Base";
 
 /**
- * 멀티모달 통합 타임라인 — 오디오 구간·자막·첨부·비디오 객체를 한 strip에서 표시·선택한다.
+ * 멀티모달 통합 타임라인 — STT·첨부·비디오 객체를 한 strip에서 표시·선택한다.
+ *
+ * lane 키: `stt` = STT 자동 (`audio_segments` + transcript).
  *
  * @example
  * <MultimodalTimeline name="mm_timeline" toName="audio" videoToName="video"
- *   audioSegmentsFrom="audio_segments" transcriptFrom="transcript"
+ *   audioSegmentsFrom="audio_segments"
+ *   transcriptFrom="transcript"
  *   attachmentsFrom="audio_evidence" savedAttachmentsFrom="saved_segment_attachments"
  *   videoObjectsFrom="box" poseObjectsFrom="pose_box" height="200" />
  *
@@ -27,8 +30,8 @@ import ControlBase from "./Base";
  * @param {string} name Control name
  * @param {string} toName Audio object name (master time axis)
  * @param {string} [videoToName] Video object name (object lane frame→sec)
- * @param {string} [audioSegmentsFrom] Labels control for audio segments
- * @param {string} [transcriptFrom] TextArea perRegion for subtitles
+ * @param {string} [audioSegmentsFrom] Labels for STT carrier regions (`audio_segments`, labels 레이어 저장 안 함)
+ * @param {string} [transcriptFrom] TextArea perRegion for STT transcript
  * @param {string} [attachmentsFrom] SegmentAttachments control name
  * @param {string} [savedAttachmentsFrom] SavedSegmentAttachments control name
  * @param {string} [videoObjectsFrom] VideoRectangle control for manual objects (`box`)
@@ -47,7 +50,7 @@ const TagAttrs = types.model({
   videoobjectsfrom: types.optional(types.string, "box"),
   poseobjectsfrom: types.optional(types.string, "pose_box"),
   height: types.optional(types.string, "200"),
-  showlanes: types.optional(types.string, "audio,subtitle,object,pose_object,saved_attachment"),
+  showlanes: types.optional(types.string, "stt,object,pose_object,saved_attachment"),
   embedattachments: types.optional(types.boolean, true),
 });
 
@@ -55,6 +58,10 @@ const Model = types
   .model({
     type: "multimodaltimeline",
   })
+  .volatile(() => ({
+    /** applyTranscript 등 외부 inject 후 lane clip 재집계 트리거. */
+    clipsEpoch: 0,
+  }))
   .views((self) => ({
     get valueType() {
       return "multimodaltimeline";
@@ -92,7 +99,18 @@ const Model = types
       return readPlayheadSec(self.audioObject, self.videoObject);
     },
     get laneClips() {
-      return collectAllLaneClips(self);
+      // regionStore / results / clipsEpoch 를 읽어 외부 inject 후에도 observer 가 갱신되게 함.
+      // deleteRegion 중 MST reaction 이 죽은 AudioRegion 의 results 를 읽지 않도록 try 로 감싼다.
+      try {
+        const regions = self.annotation?.regionStore?.regions || [];
+        const results = self.annotation?.results || [];
+        void self.clipsEpoch;
+        void regions.length;
+        void results.length;
+        return collectAllLaneClips(self);
+      } catch (e) {
+        return {};
+      }
     },
     get selectedRegionId() {
       const ann = self.annotation;
@@ -128,6 +146,10 @@ const Model = types
     },
   }))
   .actions((self) => ({
+    bumpClips() {
+      self.clipsEpoch += 1;
+    },
+
     seekTo(sec) {
       const audio = self.audioObject;
       const video = self.videoObject;
@@ -214,7 +236,13 @@ const Model = types
     },
 
     createAudioRegion(startSec, endSec) {
-      const result = createAudioRegionFromSpan(self.audioObject, self.audioSegmentsControl, startSec, endSec);
+      // STT 레인 드래그 → audio_segments (저장: textarea + transcript)
+      const result = createAudioRegionFromSpan(
+        self.audioObject,
+        self.audioSegmentsControl,
+        startSec,
+        endSec,
+      );
       if (!result.ok) return result;
 
       const ann = self.annotation;

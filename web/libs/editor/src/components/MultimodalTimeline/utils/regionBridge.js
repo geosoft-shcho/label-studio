@@ -1,6 +1,11 @@
 /**
  * MultimodalTimeline lane clip aggregation from LSF annotation store and fork Controls.
+ *
+ * 오디오 lane:
+ * - `stt` → STT (`audio_segments` + transcript TextArea)
  */
+
+import { isAlive } from "mobx-state-tree";
 
 import {
   collectVideoObjectRegions,
@@ -12,8 +17,27 @@ import {
 } from "./objectLifespan";
 import { readDurationSec } from "./mediaSync";
 
-function isAudioRegion(region) {
+/** deleteRegion/destroy 중 MST reaction 이 죽은 노드의 results 를 읽지 않도록. */
+function regionIsUsable(region) {
   if (!region) return false;
+  try {
+    return isAlive(region);
+  } catch (e) {
+    return false;
+  }
+}
+
+function safeRegionResults(region) {
+  if (!regionIsUsable(region)) return [];
+  try {
+    return region.results || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function isAudioRegion(region) {
+  if (!regionIsUsable(region)) return false;
   try {
     if (region.type === "audioregion") return true;
     if (region.object && region.object.name === "audio") return true;
@@ -31,12 +55,53 @@ function isAudioRegion(region) {
   return false;
 }
 
+function controlNameOf(control) {
+  if (!control) return "";
+  try {
+    return String(control.name || "").trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+function controlRefName(ref) {
+  if (!ref) return "";
+  if (typeof ref === "string") return String(ref).trim();
+  try {
+    return String(ref.name || "").trim();
+  } catch (e) {
+    return "";
+  }
+}
+
+/** region 이 특정 Labels control 결과를 갖는지 (`audio_segments` 등). */
+export function regionBelongsToLabelsControl(region, control) {
+  const cname = controlNameOf(control);
+  if (!cname || !regionIsUsable(region)) return false;
+  try {
+    if (region.labeling?.from_name === control) return true;
+    const labelingName = controlRefName(region.labeling?.from_name);
+    if (labelingName === cname) return true;
+  } catch (e) {
+    /* noop */
+  }
+  const results = safeRegionResults(region);
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r?.from_name === control) return true;
+    const fn = controlRefName(r?.from_name);
+    if (fn === cname) return true;
+  }
+  return false;
+}
+
 function regionLabelText(region) {
+  if (!regionIsUsable(region)) return "";
   try {
     if (region.labeling?.mainValue?.length) {
       return String(region.labeling.mainValue[0]);
     }
-    const results = region.results || [];
+    const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
       const v = results[i]?.value;
       if (v?.labels?.length) return String(v.labels[0]);
@@ -47,22 +112,162 @@ function regionLabelText(region) {
   return "";
 }
 
+/** Labels control 결과에서 region 의 라벨 텍스트를 모은다 (복수 라벨은 ", " 연결). */
+function regionLabelsList(region) {
+  const out = [];
+  const add = (raw) => {
+    const text = String(raw || "").trim();
+    if (text && !out.includes(text)) out.push(text);
+  };
+  try {
+    const main = region?.labeling?.mainValue;
+    if (Array.isArray(main)) main.forEach(add);
+    else if (typeof main === "string") add(main);
+  } catch (e) {
+    /* noop */
+  }
+  safeRegionResults(region).forEach((r) => {
+    const labels = r?.value?.labels ?? r?.mainValue;
+    if (Array.isArray(labels)) labels.forEach(add);
+    else if (typeof labels === "string") add(labels);
+  });
+  return out;
+}
+
+/**
+ * STT transcript 와 동일하게 annotation.results 에서도 Labels 값을 찾는다.
+ * deserialize inject 직후 region.labeling 이 비어 있을 때 대비.
+ */
+function labelsTextForRegion(annotation, labelsControl, region) {
+  const local = regionLabelsList(region);
+  if (local.length) return local.join(", ");
+
+  if (!annotation || !region) return "";
+  const want = controlNameOf(labelsControl);
+  if (!want) return "";
+
+  const matchesControl = (r) => {
+    if (!r) return false;
+    if (labelsControl && r.from_name === labelsControl) return true;
+    return controlRefName(r.from_name) === want;
+  };
+
+  const matchesRegion = (r) => {
+    if (!r) return false;
+    if (r.area === region) return true;
+    try {
+      const rid = String(region.cleanId || region.id || "");
+      const aid = String(r.id || r.area?.cleanId || r.area?.id || "");
+      if (rid && aid && (rid === aid || rid.startsWith(`${aid}#`) || aid.startsWith(`${rid}#`))) {
+        return true;
+      }
+    } catch (e) {
+      /* noop */
+    }
+    return false;
+  };
+
+  const collected = [];
+  const add = (raw) => {
+    const text = String(raw || "").trim();
+    if (text && !collected.includes(text)) collected.push(text);
+  };
+
+  (annotation.results || []).forEach((r) => {
+    if (!matchesControl(r) || !matchesRegion(r)) return;
+    const labels = r?.value?.labels ?? r?.mainValue;
+    if (Array.isArray(labels)) labels.forEach(add);
+    else if (typeof labels === "string") add(labels);
+  });
+
+  return collected.join(", ");
+}
+
+function truncateClipLabel(text, max = 48) {
+  const value = String(text || "").trim();
+  if (!value) return "";
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
+/**
+ * 타임라인 clip 에 찍을 **자막 본문**.
+ * Labels(`audio_segments`) 이름은 쓰지 않는다.
+ *
+ * 우선순위:
+ * 1. TextArea `transcript` (perRegion)
+ * 2. region._faivvCaptionText (apply-transcript inject 캐시)
+ */
+function resolveClipCaptionText(annotation, transcriptControl, region) {
+  if (!regionIsUsable(region)) return "";
+  const fromTranscript = transcriptControl
+    ? transcriptTextForRegion(annotation, transcriptControl, region).trim()
+    : "";
+  if (fromTranscript) return fromTranscript;
+  try {
+    if (typeof region._faivvCaptionText === "string") {
+      const cached = region._faivvCaptionText.trim();
+      if (cached) return cached;
+    }
+  } catch (e) {
+    /* noop — dead MST node */
+  }
+  return "";
+}
+
 function timeKey(start, end) {
   if (typeof start !== "number" || typeof end !== "number") return null;
   return `${start.toFixed(2)}_${end.toFixed(2)}`;
 }
 
 function transcriptTextForRegion(annotation, transcriptControl, region) {
-  if (!annotation || !transcriptControl || !region) return "";
+  if (!annotation || !region) return "";
+  const want = controlNameOf(transcriptControl) || "transcript";
+
+  const readText = (r) => {
+    if (!r) return "";
+    const v = r.mainValue ?? r.value?.text ?? r.value;
+    if (typeof v === "string") return v.trim();
+    if (Array.isArray(v) && v.length) return String(v[0]).trim();
+    return "";
+  };
+
+  const matchesControl = (r) => {
+    if (!r) return false;
+    if (transcriptControl && r.from_name === transcriptControl) return true;
+    return controlRefName(r.from_name) === want;
+  };
+
+  const matchesRegion = (r) => {
+    if (!r) return false;
+    if (r.area === region) return true;
+    try {
+      const rid = String(region.cleanId || region.id || "");
+      const aid = String(r.id || r.area?.cleanId || r.area?.id || "");
+      if (rid && aid && (rid === aid || rid.startsWith(`${aid}#`) || aid.startsWith(`${rid}#`))) {
+        return true;
+      }
+    } catch (e) {
+      /* noop */
+    }
+    return false;
+  };
+
   const results = annotation.results || [];
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    if (r.from_name !== transcriptControl) continue;
-    if (r.area !== region) continue;
-    const v = r.mainValue ?? r.value?.text ?? r.value;
-    if (typeof v === "string") return v;
-    if (Array.isArray(v) && v.length) return String(v[0]);
+    if (!matchesControl(r) || !matchesRegion(r)) continue;
+    const text = readText(r);
+    if (text) return text;
   }
+
+  const local = safeRegionResults(region);
+  for (let i = 0; i < local.length; i++) {
+    const r = local[i];
+    if (!matchesControl(r)) continue;
+    const text = readText(r);
+    if (text) return text;
+  }
+
   return "";
 }
 
@@ -91,45 +296,37 @@ function objectSpanSec(region, fps) {
 
 /** @deprecated use objectLifespanClips */
 
-export function collectAudioLaneClips(annotation, audioSegmentsControl) {
+/**
+ * STT lane — transcript / audio_segments.
+ * clip 글자는 **자막 본문**만 표시 (Labels speaker 이름은 쓰지 않음).
+ */
+export function collectSubtitleLaneClips(annotation, transcriptControl, audioSegmentsControl) {
   const clips = [];
-  if (!annotation?.regionStore) return clips;
-
-  (annotation.regionStore.regions || []).forEach((region) => {
-    if (!isAudioRegion(region)) return;
-    if (typeof region.start !== "number" || typeof region.end !== "number") return;
-    clips.push({
-      id: region.id,
-      lane: "audio",
-      start: region.start,
-      end: region.end,
-      label: regionLabelText(region) || "segment",
-      region,
-    });
-  });
-
-  clips.sort((a, b) => a.start - b.start);
-  return clips;
-}
-
-export function collectSubtitleLaneClips(annotation, transcriptControl, audioClips) {
-  const clips = [];
-  if (!annotation || !transcriptControl) return clips;
-
-  const byId = new Map();
-  audioClips.forEach((c) => byId.set(c.id, c));
+  if (!annotation) return clips;
 
   (annotation.regionStore?.regions || []).forEach((region) => {
-    if (!isAudioRegion(region)) return;
-    const text = transcriptTextForRegion(annotation, transcriptControl, region).trim();
-    if (!text) return;
+    if (!regionIsUsable(region) || !isAudioRegion(region)) return;
+    if (typeof region.start !== "number" || typeof region.end !== "number") return;
+
+    const displayText = resolveClipCaptionText(annotation, transcriptControl, region);
+    const isSttCarrier =
+      audioSegmentsControl && regionBelongsToLabelsControl(region, audioSegmentsControl);
+
+    if (!displayText && !isSttCarrier) return;
+
+    const label = truncateClipLabel(displayText);
+
     clips.push({
       id: region.id,
-      lane: "subtitle",
+      lane: "stt",
       start: region.start,
       end: region.end,
-      label: text.length > 48 ? `${text.slice(0, 48)}…` : text,
-      meta: { subtitlePreview: text },
+      label,
+      meta: {
+        subtitlePreview: displayText || label,
+        laneKind: "stt",
+        sourceKind: "stt",
+      },
       region,
     });
   });
@@ -294,14 +491,14 @@ function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
 
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
-  const audioClips = collectAudioLaneClips(annotation, item.audioSegmentsControl);
+  // stt = STT (audio_segments + transcript)
   const manualObjectClips = collectVideoObjectLaneClips(
     annotation,
     item.videoObject,
     item.videoobjectsfrom,
     {
       lane: "object",
-      sourcePrefix: "수동",
+      sourcePrefix: "비디오",
       sourceKind: "manual",
     },
   );
@@ -311,34 +508,44 @@ export function collectAllLaneClips(item) {
     item.poseobjectsfrom || "pose_box",
     {
       lane: "pose_object",
-      sourcePrefix: "포즈",
+      sourcePrefix: "POSE",
       sourceKind: "pose",
     },
   );
   const lanes = {
-    audio: audioClips,
-    subtitle: collectSubtitleLaneClips(annotation, item.transcriptControl, audioClips),
+    stt: collectSubtitleLaneClips(
+      annotation,
+      item.transcriptControl,
+      item.audioSegmentsControl,
+    ),
     attachment: collectAttachmentLaneClips(item.attachmentsControl),
     saved_attachment: collectSavedAttachmentLaneClips(item.savedAttachmentsControl),
   };
 
-  const enabled = (item.showlanes || "audio,subtitle,object,pose_object,saved_attachment")
+  const enabled = (item.showlanes || "stt,object,pose_object,saved_attachment")
     .split(",")
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => s.trim())
     .filter(Boolean);
 
   const laneClips = {};
-  enabled.forEach((key) => {
-    if (key === "object") {
-      videoObjectLaneEntries(manualObjectClips, "object", "수동").forEach(([laneKey, clips]) => {
+  enabled.forEach((rawKey) => {
+    const lower = rawKey.toLowerCase();
+    if (lower === "object") {
+      videoObjectLaneEntries(manualObjectClips, "object", "비디오").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;
       });
-    } else if (key === "pose_object") {
-      videoObjectLaneEntries(poseObjectClips, "pose_object", "포즈").forEach(([laneKey, clips]) => {
+    } else if (lower === "pose_object") {
+      videoObjectLaneEntries(poseObjectClips, "pose_object", "POSE").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;
       });
-    } else if (lanes[key]) {
-      laneClips[key] = lanes[key];
+    } else {
+      const match =
+        lanes[rawKey] != null
+          ? rawKey
+          : Object.keys(lanes).find((k) => k.toLowerCase() === lower);
+      if (match && lanes[match]) {
+        laneClips[match] = lanes[match];
+      }
     }
   });
 

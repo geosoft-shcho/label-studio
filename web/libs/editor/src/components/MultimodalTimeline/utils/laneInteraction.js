@@ -1,5 +1,5 @@
 /**
- * 통합 타임라인 오디오 lane — 구간 생성·리사이즈 (AudioUltra 위임).
+ * 통합 타임라인 STT lane — 구간 생성·리사이즈 (AudioUltra 위임).
  */
 
 const MIN_REGION_SEC = 0.1;

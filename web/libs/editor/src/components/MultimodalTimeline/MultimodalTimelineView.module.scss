@@ -229,6 +229,15 @@
   cursor: pointer;
   border: 1px solid transparent;
   box-sizing: border-box;
+  font-size: 11px;
+}
+
+.clipText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .clip:hover {
@@ -245,7 +254,7 @@
   color: var(--grape_700);
 }
 
-.laneSubtitle .clip {
+.laneStt .clip {
   background: var(--kale_0);
   color: var(--kale_400);
 }
@@ -286,6 +295,8 @@
 
 .clipInteractive {
   cursor: grab;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .clipDraft {
