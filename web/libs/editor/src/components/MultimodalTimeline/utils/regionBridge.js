@@ -2,7 +2,7 @@
  * MultimodalTimeline lane clip aggregation from LSF annotation store and fork Controls.
  *
  * 오디오 lane:
- * - `stt` → STT (`audio_segments` + transcript TextArea)
+ * - `stt` → 오디오 구간 (`audio_segments` + transcript TextArea, 수동·STT 동일 textarea)
  */
 
 import { isAlive } from "mobx-state-tree";
@@ -196,6 +196,7 @@ function truncateClipLabel(text, max = 48) {
  * 우선순위:
  * 1. TextArea `transcript` (perRegion)
  * 2. region._faivvCaptionText (apply-transcript inject 캐시)
+ * 3. window.__faivvRegionCaptions[cleanId] (MST 할당 실패·id drift 대비)
  */
 function resolveClipCaptionText(annotation, transcriptControl, region) {
   if (!regionIsUsable(region)) return "";
@@ -210,6 +211,20 @@ function resolveClipCaptionText(annotation, transcriptControl, region) {
     }
   } catch (e) {
     /* noop — dead MST node */
+  }
+  try {
+    const map =
+      typeof window !== "undefined" ? window.__faivvRegionCaptions : null;
+    if (map && typeof map === "object") {
+      const clean = String(region.cleanId || "").trim();
+      if (clean && map[clean]) return String(map[clean]).trim();
+      const full = String(region.id || "");
+      const hash = full.lastIndexOf("#");
+      const id = (hash > 0 ? full.slice(0, hash) : full).trim();
+      if (id && map[id]) return String(map[id]).trim();
+    }
+  } catch (e2) {
+    /* noop */
   }
   return "";
 }
@@ -243,7 +258,16 @@ function transcriptTextForRegion(annotation, transcriptControl, region) {
     try {
       const rid = String(region.cleanId || region.id || "");
       const aid = String(r.id || r.area?.cleanId || r.area?.id || "");
+      const parent = String(r.parentID || r.parent_id || "");
       if (rid && aid && (rid === aid || rid.startsWith(`${aid}#`) || aid.startsWith(`${rid}#`))) {
+        return true;
+      }
+      // perRegion transcript: parentID → audio region cleanId
+      if (
+        rid &&
+        parent &&
+        (rid === parent || rid.startsWith(`${parent}#`) || parent.startsWith(`${rid}#`))
+      ) {
         return true;
       }
     } catch (e) {
@@ -491,7 +515,7 @@ function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
 
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
-  // stt = STT (audio_segments + transcript)
+  // stt = 오디오 구간 (audio_segments + transcript)
   const manualObjectClips = collectVideoObjectLaneClips(
     annotation,
     item.videoObject,

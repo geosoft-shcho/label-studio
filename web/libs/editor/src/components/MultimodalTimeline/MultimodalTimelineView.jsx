@@ -32,7 +32,7 @@ const PX_PER_SEC_DEFAULT = 80;
 const MIN_TRACK_WIDTH = 640;
 
 const HINT_MESSAGES = {
-  no_label: "STT 라벨(audio_segments)을 먼저 선택하세요.",
+  no_label: "오디오 구간 라벨(audio_segments)을 먼저 선택하세요.",
   too_short: "구간이 너무 짧습니다.",
   no_audio: "오디오가 로드되지 않았습니다.",
   create_failed: "구간을 만들 수 없습니다.",

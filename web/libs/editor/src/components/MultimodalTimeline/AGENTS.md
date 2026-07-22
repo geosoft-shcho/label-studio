@@ -2,7 +2,7 @@
 
 ## 한 줄 목적
 
-영상편집기 스타일로 **STT 자동 · 비디오 객체 · 저장 첨부**를 한 strip에 표시하고, 같은 화면에서 구간 선택·생성·첨부까지 조작하는 **오케스트레이터 UI**다.
+영상편집기 스타일로 **오디오 구간(textarea)·비디오 객체·저장 첨부**를 한 strip에 표시하고, 같은 화면에서 구간 선택·생성·첨부까지 조작하는 **오케스트레이터 UI**다.
 
 저장 포맷·mapper·`layer_persist`는 건드리지 않는다. 데이터는 기존 Control/Object에 **위임**한다.
 
@@ -37,7 +37,7 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 | lane 키 | UI 라벨 | 데이터 출처 | 비고 |
 |---------|---------|-------------|------|
-| `stt` | STT 자동 | `audioSegmentsFrom` + `transcript` | STT carrier. 드래그 생성·리사이즈 → Labels `audio_segments`. clip 글자는 **자막 본문**만. 저장은 `textarea`(labels 레이어 저장 안 함) |
+| `stt` | 오디오 구간 | `audioSegmentsFrom` + `transcript` | 수동·STT 공용. 드래그 생성·리사이즈 → Labels `audio_segments`. clip 글자는 **자막 본문**만. 저장은 항상 `kind=textarea` (labels 레이어 아님) |
 | `object` | 비디오 수동 태깅 | `videoObjectsFrom` (`box`) | 수동 VideoRectangle |
 | `pose_object` | POSE 자동 태깅 | `poseObjectsFrom` (`pose_box`) | 포즈 추론 VideoRectangle |
 | `saved_attachment` | | `SavedSegmentAttachments` | 서버 첨부 전용 |
@@ -60,11 +60,12 @@ pose는 `extendLastToVideoEnd=false`로 실구간만 그린다. 점은 뷰포트
 등록되지 않은 라벨을 첫 번째 기본 라벨로 대체하면 타임라인 행 구분도 손실되므로
 silent fallback을 추가하지 않는다.
 
-STT(`textarea`) 추론도 동일: `faivv-apply-transcript.js`가 inject 전
-`audio_segments`에 `replaceLabelValues`/`ensureLabelValue`를 적용하고,
-`MultimodalTimeline.bumpClips()`로 STT 자동(`stt`) 레인을 갱신한다.
+STT/수동 구분 없이 `textarea` 레이어 apply도 동일: `faivv-apply-transcript.js`가 inject 전
+`audio_segments`에 `ensureLabelValue`로 팔레트를 병합하고,
+`MultimodalTimeline.bumpClips()`로 `stt` 레인을 갱신한다.
 clip 글자는 TextArea `transcript`(+ `_faivvCaptionText`)만 쓴다.
 Labels(`audio_segments`) 값은 레인 분류·저장에만 쓰고 clip 텍스트로는 쓰지 않는다.
+clip 자막은 TextArea / `_faivvCaptionText` / `window.__faivvRegionCaptions` 순으로 읽는다.
 
 ## XML 계약 (faivv-flow와 동기)
 
@@ -91,7 +92,7 @@ name/속성 문자열은 다음 세 곳과 **동일**해야 한다.
 | 새로 만든 UI | 기존 태그 위임 |
 |--------------|----------------|
 | strip, lane 라벨 열, playhead | Audio / Video seek·재생 |
-| STT clip 렌더·드래그 | Labels(`audio_segments`) 선택값 — STT lane 생성 |
+| STT clip 렌더·드래그 | Labels(`audio_segments`) 선택값 — `stt` lane 생성 |
 | STT clip 표시 | Labels(`audio_segments`) + TextArea(`transcript`) |
 | 첨부 패널 embed | SegmentAttachments / SavedSegmentAttachments |
 
