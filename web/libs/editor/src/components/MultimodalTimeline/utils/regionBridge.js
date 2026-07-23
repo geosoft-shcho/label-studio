@@ -321,12 +321,16 @@ function objectSpanSec(region, fps) {
 /** @deprecated use objectLifespanClips */
 
 /**
- * STT lane — transcript / audio_segments.
+ * STT / 수동 자막 레인 — transcript / audio_segments.
+ * 설계-20: LayerSegment.confidence set → stt(자동), unset → audio_manual(수동).
  * clip 글자는 **자막 본문**만 표시 (Labels speaker 이름은 쓰지 않음).
  */
 export function collectSubtitleLaneClips(annotation, transcriptControl, audioSegmentsControl) {
-  const clips = [];
-  if (!annotation) return clips;
+  const autoClips = [];
+  const manualClips = [];
+  if (!annotation) {
+    return { stt: autoClips, audio_manual: manualClips };
+  }
 
   (annotation.regionStore?.regions || []).forEach((region) => {
     if (!regionIsUsable(region) || !isAudioRegion(region)) return;
@@ -338,25 +342,34 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
 
     if (!displayText && !isSttCarrier) return;
 
+    const conf = regionConfidenceValue(region);
+    const isAuto = conf != null;
     const label = truncateClipLabel(displayText);
+    const lane = isAuto ? "stt" : "audio_manual";
 
-    clips.push({
+    const clip = {
       id: region.id,
-      lane: "stt",
+      lane,
       start: region.start,
       end: region.end,
       label,
       meta: {
         subtitlePreview: displayText || label,
-        laneKind: "stt",
-        sourceKind: "stt",
+        laneKind: lane,
+        sourceKind: isAuto ? "stt" : "manual",
+        hasConfidence: isAuto,
+        confidence: conf,
       },
       region,
-    });
+    };
+
+    if (isAuto) autoClips.push(clip);
+    else manualClips.push(clip);
   });
 
-  clips.sort((a, b) => a.start - b.start);
-  return clips;
+  autoClips.sort((a, b) => a.start - b.start);
+  manualClips.sort((a, b) => a.start - b.start);
+  return { stt: autoClips, audio_manual: manualClips };
 }
 
 export function collectAttachmentLaneClips(attachmentsControl) {
@@ -672,17 +685,20 @@ export function collectAllLaneClips(item) {
   });
   logConfidenceLaneSplit(debugRows);
 
+  const subtitleLanes = collectSubtitleLaneClips(
+    annotation,
+    item.transcriptControl,
+    item.audioSegmentsControl,
+  );
+
   const lanes = {
-    stt: collectSubtitleLaneClips(
-      annotation,
-      item.transcriptControl,
-      item.audioSegmentsControl,
-    ),
+    stt: subtitleLanes.stt || [],
+    audio_manual: subtitleLanes.audio_manual || [],
     attachment: collectAttachmentLaneClips(item.attachmentsControl),
     saved_attachment: collectSavedAttachmentLaneClips(item.savedAttachmentsControl),
   };
 
-  const enabled = (item.showlanes || "stt,object,pose_object,saved_attachment")
+  const enabled = (item.showlanes || "stt,audio_manual,object,pose_object,saved_attachment")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);

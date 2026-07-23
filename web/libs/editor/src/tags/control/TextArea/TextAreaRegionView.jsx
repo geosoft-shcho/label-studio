@@ -286,6 +286,12 @@ const HtxTextAreaRegionView = observer(({ item, area, collapsed, setCollapsed, o
               name="input"
               tag={isTextArea ? TextArea : Input}
               {...props}
+              onBlur={() => {
+                // 툴바 저장 전 Enter 없이도 draft 커밋 (beforeSend와 동일).
+                if (item.allowsubmit && item._value && !item.annotation.isReadOnly()) {
+                  submitValue();
+                }
+              }}
               onClick={(e) => {
                 e.stopPropagation();
               }}

@@ -17,7 +17,8 @@ import ControlBase from "./Base";
 /**
  * 멀티모달 통합 타임라인 — STT·첨부·비디오 객체를 한 strip에서 표시·선택한다.
  *
- * lane 키: `stt` = STT 자동 (`audio_segments` + transcript).
+ * lane 키: `stt` = STT 자동, `audio_manual` = 수동 자막
+ * (`audio_segments` + transcript, LayerSegment.confidence 분기).
  *
  * @example
  * <MultimodalTimeline name="mm_timeline" toName="audio" videoToName="video"
@@ -50,7 +51,7 @@ const TagAttrs = types.model({
   videoobjectsfrom: types.optional(types.string, "box"),
   poseobjectsfrom: types.optional(types.string, "pose_box"),
   height: types.optional(types.string, "200"),
-  showlanes: types.optional(types.string, "stt,object,pose_object,saved_attachment"),
+  showlanes: types.optional(types.string, "stt,audio_manual,object,pose_object,saved_attachment"),
   embedattachments: types.optional(types.boolean, true),
 });
 
@@ -236,7 +237,7 @@ const Model = types
     },
 
     createAudioRegion(startSec, endSec) {
-      // STT 레인 드래그 → audio_segments (저장: textarea + transcript)
+      // 오디오 레인 드래그 → audio_segments (저장: textarea + transcript)
       const result = createAudioRegionFromSpan(
         self.audioObject,
         self.audioSegmentsControl,
@@ -249,6 +250,28 @@ const Model = types
       if (result.region && ann) {
         ann.regionStore.unselectAll();
         ann.selectArea(result.region);
+        // outliner TextArea 입력·툴바 저장을 위해 빈 transcript result 확보.
+        const transcript = self.transcriptControl;
+        if (transcript) {
+          try {
+            if (typeof transcript.createPerRegionResult === "function") {
+              transcript.createPerRegionResult();
+            }
+            const created = (result.region.results || []).find(
+              (r) => r.from_name === transcript || r.from_name?.name === transcript.name,
+            );
+            if (created && typeof created.setValue === "function") {
+              const main = created.mainValue;
+              const empty =
+                !main ||
+                (Array.isArray(main) && main.length === 0) ||
+                (Array.isArray(main) && main.length === 1 && !String(main[0] || "").trim());
+              if (empty) created.setValue([""]);
+            }
+          } catch (e) {
+            /* noop */
+          }
+        }
         self.attachmentsControl?.ensureBucketForSelection?.();
       }
 

@@ -307,6 +307,13 @@
 .laneStt .clip {
   background: var(--kale_0);
   color: var(--kale_400);
+  border-style: dashed;
+}
+
+.laneAudioManual .clip {
+  background: var(--grape_0);
+  color: var(--grape_700);
+  border-style: solid;
 }
 
 .laneObject .clip {

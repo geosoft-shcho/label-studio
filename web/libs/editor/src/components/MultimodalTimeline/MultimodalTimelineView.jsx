@@ -16,6 +16,7 @@ import styles from "./MultimodalTimelineView.module.scss";
 const LANE_LABELS = {
   // lane 키는 호환 유지 — UI 카피는 설계-20 수동/자동
   stt: "STT 자동",
+  audio_manual: "수동 자막",
   object: "수동 객체",
   pose_object: "자동(POSE)",
   saved_attachment: "저장 첨부",
@@ -23,6 +24,7 @@ const LANE_LABELS = {
 
 const LANE_ROW_CLASS = {
   stt: styles.laneStt,
+  audio_manual: styles.laneAudioManual,
   object: styles.laneObject,
   pose_object: styles.lanePoseObject,
   saved_attachment: styles.laneSavedAttachment,
@@ -324,10 +326,14 @@ function MultimodalTimelineView({ item, className }) {
                   viewportWidth={viewportWidth}
                   selectedId={item.selectedRegionId}
                   readOnly={readOnly}
-                  draftSpan={row.kind === "stt" ? draftSpan : null}
+                  draftSpan={row.kind === "audio_manual" ? draftSpan : null}
                   onClipClick={onClipClick}
-                  onAudioTrackMouseDown={row.kind === "stt" ? beginAudioDraw : undefined}
-                  onAudioClipMouseDown={row.kind === "stt" ? onAudioClipMouseDown : undefined}
+                  onAudioTrackMouseDown={row.kind === "audio_manual" ? beginAudioDraw : undefined}
+                  onAudioClipMouseDown={
+                    row.kind === "stt" || row.kind === "audio_manual"
+                      ? onAudioClipMouseDown
+                      : undefined
+                  }
                 />
               ))}
             </div>
@@ -357,7 +363,7 @@ function MultimodalTimelineView({ item, className }) {
 }
 
 function timelineRowsFromClips(laneClips) {
-  const order = ["stt", "object", "pose_object", "saved_attachment"];
+  const order = ["stt", "audio_manual", "object", "pose_object", "saved_attachment"];
   const orderIndex = new Map(order.map((kind, index) => [kind, index]));
   return Object.entries(laneClips)
     .filter(([, clips]) => Array.isArray(clips))
@@ -398,7 +404,9 @@ function LaneRow({
   onAudioClipMouseDown,
 }) {
   const laneClass = LANE_ROW_CLASS[laneKind] || "";
-  const isSttLane = laneKind === "stt";
+  // 수동 자막 레인에서만 신규 드래그. STT·수동 모두 클립 리사이즈 가능.
+  const isAudioDrawLane = laneKind === "audio_manual";
+  const isAudioClipLane = laneKind === "stt" || laneKind === "audio_manual";
   const isKeypointsLane = laneKind === "object" || laneKind === "pose_object";
 
   const renderClip = (clip, options = {}) => {
@@ -415,14 +423,14 @@ function LaneRow({
           styles.clip,
           selected ? styles.clipSelected : "",
           draft ? styles.clipDraft : "",
-          isSttLane && !readOnly ? styles.clipInteractive : "",
+          isAudioClipLane && !readOnly ? styles.clipInteractive : "",
         ]
           .filter(Boolean)
           .join(" ")}
         style={clipStyle}
         title={clip.meta?.subtitlePreview || clip.meta?.labelPreview || clip.label}
-        onClick={draft || isSttLane ? undefined : () => onClipClick(clip)}
-        onMouseDown={isSttLane && !draft ? (e) => onAudioClipMouseDown?.(e, clip) : undefined}
+        onClick={draft || isAudioClipLane ? undefined : () => onClipClick(clip)}
+        onMouseDown={isAudioClipLane && !draft ? (e) => onAudioClipMouseDown?.(e, clip) : undefined}
         role="button"
         tabIndex={draft ? -1 : 0}
         onKeyDown={
@@ -433,7 +441,7 @@ function LaneRow({
               }
         }
       >
-        {isSttLane && !readOnly && !draft ? (
+        {isAudioClipLane && !readOnly && !draft ? (
           <>
             <span className={styles.resizeHandleStart} />
             <span className={styles.resizeHandleEnd} />
@@ -448,7 +456,7 @@ function LaneRow({
   };
 
   const draftClip =
-    draftSpan && isSttLane
+    draftSpan && isAudioDrawLane
       ? {
           id: "draft",
           start: draftSpan.start,
@@ -460,12 +468,12 @@ function LaneRow({
   return (
     <div className={[styles.lane, isKeypointsLane ? styles.laneKeypoints : "", laneClass].filter(Boolean).join(" ")}>
       <div
-        className={[styles.laneTrack, isSttLane && !readOnly ? styles.laneTrackInteractive : ""]
+        className={[styles.laneTrack, isAudioDrawLane && !readOnly ? styles.laneTrackInteractive : ""]
           .filter(Boolean)
           .join(" ")}
         style={{ width: trackWidth }}
         onMouseDown={
-          isSttLane && onAudioTrackMouseDown
+          isAudioDrawLane && onAudioTrackMouseDown
             ? (e) => {
                 if (e.target !== e.currentTarget) return;
                 onAudioTrackMouseDown(e, e.currentTarget);
