@@ -128,6 +128,40 @@ const Model = types
 
       return out;
     },
+
+    /**
+     * Video 박스 라벨: `AI · seg_…: Person` (confidence set) / `seg_…: Person` (수동).
+     * Labels 클래스명(Person)은 유지. 인스턴스는 segment id.
+     */
+    getLabelText(joinstr) {
+      const label = self.labeling;
+      const text = self.texting?.mainValue?.[0]?.replace(/\n\r|\n/, " ");
+      const labelNames = label?.getSelectedString(joinstr);
+      const labelText = [];
+      if (self.hasInferenceConfidence) labelText.push("AI");
+      const segmentId = self.videoSegmentId;
+      if (segmentId) labelText.push(shortVideoSegmentId(segmentId));
+      else if (self.region_index) labelText.push(String(self.region_index));
+      if (labelNames) labelText.push(labelNames);
+      if (text) labelText.push(text);
+      return labelText.join(": ");
+    },
+
+    /** LayerSegment.id — region.segmentId / result.value.segmentId / cleanId(`seg_*`). */
+    get videoSegmentId() {
+      const fromRegion = String(self.segmentId || "").trim();
+      if (fromRegion) return fromRegion;
+      try {
+        for (const r of self.results || []) {
+          const sid = String(r?.value?.segmentId || "").trim();
+          if (sid) return sid;
+        }
+      } catch (e) {
+        /* noop */
+      }
+      const clean = String(self.cleanId || self.id || "").trim();
+      return clean.startsWith("seg_") ? clean : "";
+    },
   }))
   .actions((self) => ({
     updateShape(data, frame) {
@@ -158,6 +192,16 @@ const Model = types
       }
     },
   }));
+
+function shortVideoSegmentId(id) {
+  const s = String(id || "").trim();
+  if (!s) return "";
+  if (s.startsWith("seg_") && s.length > 4) {
+    const rest = s.slice(4);
+    return rest.length <= 8 ? `seg_${rest}` : `seg_${rest.slice(0, 8)}`;
+  }
+  return s.length <= 10 ? s : s.slice(0, 10);
+}
 
 const VideoRectangleRegionModel = types.compose(
   "VideoRectangleRegionModel",

@@ -14,10 +14,10 @@ import { subscribeMediaPlayhead } from "./utils/mediaSync";
 import styles from "./MultimodalTimelineView.module.scss";
 
 const LANE_LABELS = {
-  // lane 키는 호환 유지
+  // lane 키는 호환 유지 — UI 카피는 설계-20 수동/자동
   stt: "STT 자동",
-  object: "비디오 수동 태깅",
-  pose_object: "POSE 자동 태깅",
+  object: "수동 객체",
+  pose_object: "자동(POSE)",
   saved_attachment: "저장 첨부",
 };
 
@@ -283,11 +283,18 @@ function MultimodalTimelineView({ item, className }) {
               className={[
                 styles.laneLabel,
                 row.kind === "object" || row.kind === "pose_object" ? styles.laneLabelKeypoints : "",
+                row.kind === "object" ? styles.laneLabelObject : "",
+                row.kind === "pose_object" ? styles.laneLabelPoseObject : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               title={row.label}
             >
+              {row.kind === "pose_object" ? (
+                <span className={styles.laneSourceBadge} aria-hidden="true">
+                  AI
+                </span>
+              ) : null}
               {row.label}
             </div>
           ))}
@@ -357,19 +364,21 @@ function timelineRowsFromClips(laneClips) {
     .map(([key, clips]) => {
       const kind = key.split(":")[0];
       const firstClip = clips[0];
+      const segmentId = String(firstClip?.meta?.segmentId || "").trim();
       return {
         key,
         kind,
         clips,
         label: firstClip?.meta?.laneLabel || LANE_LABELS[kind] || kind,
         start: firstClip?.start ?? 0,
+        segmentId,
         regionId: firstClip?.regionId || "",
       };
     })
     .sort((a, b) => {
       const kindOrder = (orderIndex.get(a.kind) ?? order.length) - (orderIndex.get(b.kind) ?? order.length);
       if (kindOrder !== 0) return kindOrder;
-      return a.start - b.start || a.regionId.localeCompare(b.regionId);
+      return a.start - b.start || (a.segmentId || a.regionId).localeCompare(b.segmentId || b.regionId);
     });
 }
 
@@ -467,6 +476,7 @@ function LaneRow({
         {isKeypointsLane ? (
           <PoseKeypointsRow
             clips={clips}
+            laneKind={laneKind}
             pxPerSec={pxPerSec}
             scrollLeft={scrollLeft}
             viewportWidth={viewportWidth}

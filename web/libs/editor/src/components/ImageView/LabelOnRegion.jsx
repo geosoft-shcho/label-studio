@@ -36,7 +36,9 @@ const LabelOnBbox = ({
   const [textEl, setTextEl] = useState();
   const paddingLeft = 20;
   const paddingRight = 5;
-  const scoreSpace = score ? 34 : 0;
+  // score 0(추론 confidence)도 뱃지 표시 — !!0 금지
+  const hasScore = score != null && Number.isFinite(Number(score));
+  const scoreSpace = hasScore ? 34 : 0;
   const horizontalPaddings = paddingLeft + paddingRight;
   const textMaxWidth = Math.max(0, maxWidth * zoomScale - horizontalPaddings - scoreSpace);
   const isSticking = !!textMaxWidth;
@@ -97,7 +99,7 @@ const LabelOnBbox = ({
 
   return (
     <Group strokeScaleEnabled={false} x={x} y={y} rotation={rotation}>
-      {!!score && (
+      {hasScore && (
         <Label
           y={-height * scale}
           scaleX={scale}
@@ -106,9 +108,9 @@ const LabelOnBbox = ({
             return false;
           }}
         >
-          <Tag fill={Utils.Colors.getScaleGradient(score)} cornerRadius={2} />
+          <Tag fill={Utils.Colors.getScaleGradient(Number(score))} cornerRadius={2} />
           <Text
-            text={score.toFixed(2)}
+            text={Number(score).toFixed(2)}
             fontFamily="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif"
             fontSize={fontSize}
             fill="white"
@@ -300,6 +302,13 @@ const LabelOnKP = observer(({ item, color }) => {
 const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjacent = false }) => {
   const isTexting = !!reg.texting;
   const labelText = reg.getLabelText(",");
+  // 설계-20: LayerSegment.confidence → score 뱃지 (0 포함)
+  const conf =
+    typeof reg.inferenceConfidence === "number"
+      ? reg.inferenceConfidence
+      : reg.confidence != null && Number.isFinite(Number(reg.confidence))
+        ? Number(reg.confidence)
+        : reg.score;
 
   return (
     <LabelOnBbox
@@ -308,7 +317,7 @@ const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjace
       rotation={box.rotation}
       isTexting={isTexting}
       text={labelText}
-      score={reg.score}
+      score={conf}
       showLabels={reg.store.settings.showLabels}
       zoomScale={scale}
       color={color}

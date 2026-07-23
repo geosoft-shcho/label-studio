@@ -416,6 +416,7 @@ export function collectVideoObjectLaneClips(
   const sourcePrefix = options.sourcePrefix || "";
   const sourceKind = options.sourceKind || (lane === "pose_object" ? "pose" : "manual");
   // 포즈는 실구간만 (영상 끝 연장 금지). 수동 box 는 기존 LSF Frames UX 유지.
+  // 설계-20: 자동(confidence) → last span 영상끝 연장 금지.
   const extendLastToVideoEnd = options.extendLastToVideoEnd ?? sourceKind !== "pose";
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
@@ -447,6 +448,7 @@ export function collectVideoObjectLaneClips(
       const clipLabel =
         spans.length > 1 ? `${label} (${span.spanIndex + 1})` : label;
       const displayLabel = sourcePrefix ? `${sourcePrefix} · ${clipLabel}` : clipLabel;
+      const segmentId = videoRegionSegmentId(region);
       clips.push({
         id: `${region.id}::${lane}::span${span.spanIndex}`,
         regionId: region.id,
@@ -463,6 +465,7 @@ export function collectVideoObjectLaneClips(
           sourceKind,
           controlName: videoRegionControlName(region),
           fps,
+          segmentId,
         },
         region,
       });
@@ -473,25 +476,48 @@ export function collectVideoObjectLaneClips(
   return clips;
 }
 
+function videoRegionSegmentId(region) {
+  if (!region) return "";
+  const fromRegion = String(region.segmentId || "").trim();
+  if (fromRegion) return fromRegion;
+  try {
+    for (const r of region.results || []) {
+      const sid = String(r?.value?.segmentId || "").trim();
+      if (sid) return sid;
+    }
+  } catch (e) {
+    /* noop */
+  }
+  // CreateLayerSegment 응답 id가 아직 없으면 LSF cleanId 폴백.
+  const clean = String(region.cleanId || region.id || "").trim();
+  return clean;
+}
+
 function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
-  const byRegion = new Map();
+  // 행 키·그룹은 LayerSegment.id(`seg_*`). region MST id 로 조회하지 않는다.
+  const bySegment = new Map();
   clips.forEach((clip) => {
-    const regionId = String(clip.regionId || clip.region?.id || clip.id);
-    const current = byRegion.get(regionId) || [];
+    const segmentId =
+      String(clip.meta?.segmentId || "").trim() ||
+      videoRegionSegmentId(clip.region) ||
+      String(clip.regionId || clip.region?.id || clip.id);
+    const current = bySegment.get(segmentId) || [];
     current.push(clip);
-    byRegion.set(regionId, current);
+    bySegment.set(segmentId, current);
   });
 
-  const rows = [...byRegion.entries()].map(([regionId, regionClips]) => {
-    regionClips.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  const rows = [...bySegment.entries()].map(([segmentId, segmentClips]) => {
+    segmentClips.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+    const regionId = String(segmentClips[0]?.regionId || segmentClips[0]?.region?.id || "");
     return {
+      segmentId,
       regionId,
-      clips: regionClips,
-      objectLabel: regionClips[0]?.meta?.objectLabel || "Object",
-      start: regionClips[0]?.start ?? 0,
+      clips: segmentClips,
+      objectLabel: segmentClips[0]?.meta?.objectLabel || "Object",
+      start: segmentClips[0]?.start ?? 0,
     };
   });
-  rows.sort((a, b) => a.start - b.start || a.regionId.localeCompare(b.regionId));
+  rows.sort((a, b) => a.start - b.start || a.segmentId.localeCompare(b.segmentId));
 
   const labelCounts = new Map();
   rows.forEach((row) => {
@@ -499,43 +525,153 @@ function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
   });
 
   return rows.map((row) => {
-    const duplicateSuffix =
-      labelCounts.get(row.objectLabel) > 1 ? ` · ${row.regionId.slice(0, 4)}` : "";
-    const laneLabel = `${sourceLabel} · ${row.objectLabel}${duplicateSuffix}`;
+    // 동일 Labels(Person)는 segment id로 행을 구분한다.
+    const idSuffix =
+      labelCounts.get(row.objectLabel) > 1 ? ` · ${shortSegmentId(row.segmentId)}` : "";
+    const laneLabel = `${sourceLabel} · ${row.objectLabel}${idSuffix}`;
     row.clips.forEach((clip) => {
       clip.meta = {
         ...clip.meta,
         laneKind,
         laneLabel,
+        segmentId: row.segmentId,
       };
     });
-    return [`${laneKind}:${row.regionId}`, row.clips];
+    return [`${laneKind}:${row.segmentId}`, row.clips];
   });
+}
+
+/** 타임라인/비디오 라벨용 짧은 segment id (`seg_a7a16f9b…`). */
+function shortSegmentId(id) {
+  const s = String(id || "").trim();
+  if (!s) return "";
+  if (s.startsWith("seg_") && s.length > 4) {
+    const rest = s.slice(4);
+    return rest.length <= 8 ? `seg_${rest}` : `seg_${rest.slice(0, 8)}`;
+  }
+  return s.length <= 10 ? s : s.slice(0, 10);
+}
+
+/** LayerSegment.confidence → region (설계-20). 있으면 자동 태깅. */
+function regionConfidenceValue(region) {
+  if (!region) return null;
+  try {
+    const c = region.confidence;
+    if (c != null && c !== "" && Number.isFinite(Number(c))) return Number(c);
+  } catch (e) {
+    /* noop */
+  }
+  try {
+    for (const r of region.results || []) {
+      const c = r?.value?.confidence;
+      if (c != null && c !== "" && Number.isFinite(Number(c))) return Number(c);
+    }
+  } catch (e2) {
+    /* noop */
+  }
+  return null;
+}
+
+/**
+ * 설계-20: LayerSegment.confidence set(0 포함) → 자동.
+ * unset(검수/사람 편집 후 clear) → 수동. pose_box 폴백 없음.
+ */
+function isAutoTaggedVideoRegion(region) {
+  return regionConfidenceValue(region) != null;
+}
+
+let _lastConfidenceLaneDebugKey = "";
+
+function isConfidenceDebugEnabled() {
+  try {
+    if (typeof window === "undefined") return false;
+    if (window.__faivvDebugConfidence === false) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function logConfidenceLaneSplit(rows) {
+  if (!isConfidenceDebugEnabled()) return;
+  const summary = {
+    rule: "LayerSegment.confidence → MultimodalTimeline lanes",
+    withConfidence: rows.filter((r) => r.hasConfidence).length,
+    withoutConfidence: rows.filter((r) => !r.hasConfidence).length,
+    autoLane: rows.filter((r) => r.lane === "pose_object").length,
+    manualLane: rows.filter((r) => r.lane === "object").length,
+    rows,
+  };
+  const key = JSON.stringify(summary);
+  if (key === _lastConfidenceLaneDebugKey) return;
+  _lastConfidenceLaneDebugKey = key;
+  try {
+    // eslint-disable-next-line no-console
+    console.info("[faivv-confidence] mmTimeline.lanes", summary);
+  } catch (e) {
+    /* noop */
+  }
 }
 
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
-  // stt = 오디오 구간 (audio_segments + transcript)
-  const manualObjectClips = collectVideoObjectLaneClips(
+  // box + pose_box 를 한 풀로 모은 뒤 confidence 로 수동/자동 레인 분기 (설계-20).
+  const boxFrom = item.videoobjectsfrom || "box";
+  const poseFrom = item.poseobjectsfrom || "pose_box";
+  const allVideoClips = collectVideoObjectLaneClips(
     annotation,
     item.videoObject,
-    item.videoobjectsfrom,
+    `${boxFrom},${poseFrom}`,
     {
       lane: "object",
-      sourcePrefix: "비디오",
-      sourceKind: "manual",
+      sourcePrefix: "",
+      // confidence 분기 후 pose는 연장 금지. 수동 last-span 연장은 후처리하지 않음.
+      extendLastToVideoEnd: false,
     },
   );
-  const poseObjectClips = collectVideoObjectLaneClips(
-    annotation,
-    item.videoObject,
-    item.poseobjectsfrom || "pose_box",
-    {
-      lane: "pose_object",
-      sourcePrefix: "POSE",
-      sourceKind: "pose",
-    },
-  );
+  const manualObjectClips = [];
+  const poseObjectClips = [];
+  const debugRows = [];
+  allVideoClips.forEach((clip) => {
+    const isAuto = isAutoTaggedVideoRegion(clip.region);
+    const conf = regionConfidenceValue(clip.region);
+    const hasConf = conf != null;
+    debugRows.push({
+      regionId: String(clip.regionId || clip.region?.id || ""),
+      segmentId: clip.meta?.segmentId || "",
+      control: clip.meta?.controlName || "",
+      hasConfidence: hasConf,
+      confidence: conf,
+      poseBoxFallback: !hasConf && videoRegionControlName(clip.region) === "pose_box",
+      lane: isAuto ? "pose_object" : "object",
+      laneHint: isAuto ? "pose_object(AI)" : "object(human)",
+    });
+    if (isAuto) {
+      poseObjectClips.push({
+        ...clip,
+        lane: "pose_object",
+        meta: {
+          ...clip.meta,
+          sourceKind: "pose",
+          hasConfidence: hasConf,
+          confidence: conf,
+        },
+      });
+    } else {
+      manualObjectClips.push({
+        ...clip,
+        lane: "object",
+        meta: {
+          ...clip.meta,
+          sourceKind: "manual",
+          hasConfidence: false,
+          confidence: null,
+        },
+      });
+    }
+  });
+  logConfidenceLaneSplit(debugRows);
+
   const lanes = {
     stt: collectSubtitleLaneClips(
       annotation,
@@ -555,11 +691,11 @@ export function collectAllLaneClips(item) {
   enabled.forEach((rawKey) => {
     const lower = rawKey.toLowerCase();
     if (lower === "object") {
-      videoObjectLaneEntries(manualObjectClips, "object", "비디오").forEach(([laneKey, clips]) => {
+      videoObjectLaneEntries(manualObjectClips, "object", "수동").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;
       });
     } else if (lower === "pose_object") {
-      videoObjectLaneEntries(poseObjectClips, "pose_object", "POSE").forEach(([laneKey, clips]) => {
+      videoObjectLaneEntries(poseObjectClips, "pose_object", "자동").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;
       });
     } else {

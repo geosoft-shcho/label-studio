@@ -88,6 +88,11 @@ const Result = types
       timelinelabels: types.maybe(types.array(types.string)), // new one
       taxonomy: types.frozen(), // array of arrays of strings
       sequence: types.frozen(),
+      // faivv: VideoRectangle 인스턴스 구분 (Labels Person + LayerSegment.id)
+      segmentId: types.maybe(types.string),
+      personId: types.maybe(types.string),
+      framesCount: types.maybe(types.number),
+      duration: types.maybe(types.number),
     }),
     // info about object and region
     meta: types.frozen(),

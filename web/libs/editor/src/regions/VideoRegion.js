@@ -11,6 +11,13 @@ export const onlyProps = (props, obj) => {
   return Object.fromEntries(props.map((prop) => [prop, obj[prop]]));
 };
 
+/** 설계-20: LayerSegment.confidence set(0 포함) → 자동 태깅. */
+function finiteConfidence(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 const Model = types
   .model("VideoRegionModel", {
     id: types.optional(types.identifier, guidGenerator),
@@ -18,9 +25,27 @@ const Model = types
     object: types.late(() => types.reference(VideoModel)),
 
     sequence: types.frozen([]),
+    // faivv: LayerSegment.id — Labels Person 인스턴스 구분용
+    segmentId: types.maybeNull(types.string),
+    personId: types.maybeNull(types.string),
+    // 설계-20: LayerSegment.confidence (unset=수동, set=추론)
+    confidence: types.maybeNull(types.number),
   })
   .preProcessSnapshot((snapshot) => {
-    return { ...snapshot, sequence: snapshot.sequence || snapshot.value.sequence };
+    const value = snapshot.value || {};
+    const conf =
+      finiteConfidence(snapshot.confidence) ??
+      finiteConfidence(value.confidence) ??
+      finiteConfidence(snapshot.score);
+    return {
+      ...snapshot,
+      sequence: snapshot.sequence || value.sequence,
+      segmentId: snapshot.segmentId ?? value.segmentId ?? null,
+      personId: snapshot.personId ?? value.personId ?? null,
+      confidence: conf,
+      // LabelOnBbox score 뱃지 (0도 표시되도록 score 유지)
+      score: conf != null ? conf : snapshot.score ?? null,
+    };
   })
   .volatile(() => ({
     hideable: true,
@@ -32,6 +57,25 @@ const Model = types
 
     get annotation() {
       return getRoot(self)?.annotationStore?.selected;
+    },
+
+    /** 설계-20: confidence set → 자동(AI). */
+    get hasInferenceConfidence() {
+      return self.inferenceConfidence != null;
+    },
+
+    get inferenceConfidence() {
+      const fromField = finiteConfidence(self.confidence);
+      if (fromField != null) return fromField;
+      try {
+        for (const r of self.results || []) {
+          const c = finiteConfidence(r?.value?.confidence);
+          if (c != null) return c;
+        }
+      } catch (e) {
+        /* noop */
+      }
+      return finiteConfidence(self.score);
     },
 
     getShape() {
@@ -67,6 +111,10 @@ const Model = types
           return { ...keyframe, time: keyframe.frame / framerate };
         }),
       };
+      if (self.segmentId) value.segmentId = self.segmentId;
+      if (self.personId) value.personId = self.personId;
+      const conf = self.inferenceConfidence;
+      if (conf != null) value.confidence = conf;
 
       return { value };
     },

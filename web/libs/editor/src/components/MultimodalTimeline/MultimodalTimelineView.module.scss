@@ -181,6 +181,28 @@
   padding-bottom: 0;
   font-size: 11px;
   line-height: 24px;
+  gap: 4px;
+}
+
+.laneLabelObject {
+  color: var(--plum_500);
+}
+
+.laneLabelPoseObject {
+  color: var(--grape_700);
+}
+
+.laneSourceBadge {
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--grape_0);
+  color: var(--grape_700);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  letter-spacing: 0.02em;
 }
 
 .keypointsTrack {
@@ -197,10 +219,38 @@
   background: color-mix(in srgb, var(--lifespan-color, var(--grape_500)) 40%, transparent);
   cursor: pointer;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+.keypointsLifespanManual {
+  border: 1px solid color-mix(in srgb, var(--lifespan-color, var(--plum_500)) 70%, transparent);
+}
+
+.keypointsLifespanAuto {
+  border: 1px dashed color-mix(in srgb, var(--lifespan-color, var(--grape_500)) 85%, transparent);
 }
 
 .keypointsLifespanSelected {
   box-shadow: 0 0 0 1px var(--grape_500);
+}
+
+.keypointsAiBadge {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--sand_0) 82%, transparent);
+  color: var(--grape_700);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  pointer-events: none;
+  max-width: calc(100% - 4px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .keypointsPoint {

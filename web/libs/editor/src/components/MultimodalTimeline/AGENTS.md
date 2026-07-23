@@ -38,27 +38,30 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 | lane 키 | UI 라벨 | 데이터 출처 | 비고 |
 |---------|---------|-------------|------|
 | `stt` | 오디오 구간 | `audioSegmentsFrom` + `transcript` | 수동·STT 공용. 드래그 생성·리사이즈 → Labels `audio_segments`. clip 글자는 **자막 본문**만. 저장은 항상 `kind=textarea` (labels 레이어 아님) |
-| `object` | 비디오 수동 태깅 | `videoObjectsFrom` (`box`) | 수동 VideoRectangle |
-| `pose_object` | POSE 자동 태깅 | `poseObjectsFrom` (`pose_box`) | 포즈 추론 VideoRectangle |
-| `saved_attachment` | | `SavedSegmentAttachments` | 서버 첨부 전용 |
+| `object` | 수동 객체 | `videoObjectsFrom` (`box`) + **confidence unset** | 수동 VideoRectangle |
+| `pose_object` | 자동(POSE) | `poseObjectsFrom` (`pose_box`) + **confidence set** | 추론 VideoRectangle |
+| `saved_attachment` | 저장 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
+
+레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.
+unset(검수 clear 포함) → `object`, set(0 포함) → `pose_object`.
+`kind`/`displayName`(welding-pose vs video_objects)만으로 분기하지 않는다.
 
 `attachment` lane(세션 bucket 요약)은 embed `SegmentAttachmentsPanel`로 대체되어 **기본 showLanes에서 제외**.
 
 `object`와 `pose_object`는 고정 단일 행이 아니다. `collectAllLaneClips`가
-`object:<regionId>` / `pose_object:<regionId>` 키로 전개하며, 한 region의
-multi-span clip은 같은 행에 유지한다. 같은 라벨이 여러 개면 행 라벨에 region id
-앞 4자를 붙여 구분한다.
+`object:<segmentId>` / `pose_object:<segmentId>` 키로 전개하며, 한 segment의
+multi-span clip은 같은 행에 유지한다. 같은 Labels 값(예: Person)이 여러 개면
+행 라벨에 **LayerSegment.id**(`seg_*` 짧은 표기, 예: `seg_a7a16f9b`)를 붙여
+구분한다. MST `region.id`로 레인을 키잉하지 않는다.
 
 표시는 박스 clip이 아니라 `PoseKeypointsRow`(Frames `lsf-keypoints`와 동일 개념):
 lifespan 막대 + `sequence.frame/fps` 키프레임 점. `time` 필드는 쓰지 않는다.
+자동 레인은 점선 lifespan + `AI`/`confidence` 뱃지, 수동은 solid.
 pose는 `extendLastToVideoEnd=false`로 실구간만 그린다. 점은 뷰포트 컬링·간격 샘플링.
 
-추론 완료 후 발견되는 `Person p1` 같은 instance 라벨은
-`Labels.replaceLabelValues()`/`ensureLabelValue()`로 `pose_labels`에 먼저 동기화한
-뒤 region을 hydrate한다. replace 추론에서는 기본 목록을 실제 결과 목록으로
-교체하고, append 경로에서는 누락된 정확한 라벨만 추가한다.
-등록되지 않은 라벨을 첫 번째 기본 라벨로 대체하면 타임라인 행 구분도 손실되므로
-silent fallback을 추가하지 않는다.
+팔레트 Labels는 클래스명만(`Person`). 인스턴스 구분은 segment id(region id)다.
+`Person p1` 같은 instance 라벨을 Labels에 넣지 않는다.
+Video bbox는 confidence set 시 점선 + `AI` 라벨 접두 + score 뱃지.
 
 STT/수동 구분 없이 `textarea` 레이어 apply도 동일: `faivv-apply-transcript.js`가 inject 전
 `audio_segments`에 `ensureLabelValue`로 팔레트를 병합하고,

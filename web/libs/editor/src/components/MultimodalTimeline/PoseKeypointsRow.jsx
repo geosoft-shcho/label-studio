@@ -1,6 +1,7 @@
 /**
  * Frames `lsf-keypoints` 와 동일한 lifespan+point UI를 초 좌표(pxPerSec)로 그린다.
  * TimelineContext(step/frame)에 의존하지 않는다.
+ * 설계-20: laneKind / clip.meta.confidence 로 수동·자동 시각 구분.
  */
 import { useMemo } from "react";
 import PropTypes from "prop-types";
@@ -37,14 +38,21 @@ function cullAndSamplePoints(timesSec, visibleMin, visibleMax, pxPerSec) {
   return out;
 }
 
+function formatConfidence(conf) {
+  if (conf == null || !Number.isFinite(Number(conf))) return "";
+  return Number(conf).toFixed(2);
+}
+
 function PoseKeypointsRow({
   clips,
+  laneKind,
   pxPerSec,
   scrollLeft = 0,
   viewportWidth = 0,
   selectedId,
   onClipClick,
 }) {
+  const isAutoLane = laneKind === "pose_object";
   const visibleMin =
     viewportWidth > 0 ? Math.max(0, scrollLeft / pxPerSec - VIEW_MARGIN_SEC) : 0;
   const visibleMax =
@@ -66,31 +74,45 @@ function PoseKeypointsRow({
         clip.region?.inSelection ||
         (selectedId && (clip.regionId === selectedId || clip.id === selectedId))
       );
-      return { clip, points, selected };
+      const conf =
+        clip.meta?.confidence != null && Number.isFinite(Number(clip.meta.confidence))
+          ? Number(clip.meta.confidence)
+          : null;
+      return { clip, points, selected, conf };
     });
   }, [clips, visibleMin, visibleMax, pxPerSec, selectedId]);
 
   return (
     <div className={styles.keypointsTrack}>
-      {spans.map(({ clip, points, selected }) => {
+      {spans.map(({ clip, points, selected, conf }) => {
         const width = Math.max((clip.end - clip.start) * pxPerSec, 4);
         const left = clip.start * pxPerSec;
-        const color = clip.meta?.color || "var(--grape_500)";
+        const color =
+          clip.meta?.color || (isAutoLane ? "var(--grape_500)" : "var(--plum_500)");
         const lifespanStyle = {
           left,
           width,
           "--lifespan-color": color,
           "--point-color": color,
         };
+        const confText = formatConfidence(conf);
+        const titleParts = [clip.label || clip.meta?.laneLabel || ""];
+        if (isAutoLane) titleParts.unshift("AI");
+        if (confText) titleParts.push(`conf ${confText}`);
+        const title = titleParts.filter(Boolean).join(" · ");
 
         return (
           <div
             key={clip.id}
-            className={[styles.keypointsLifespan, selected ? styles.keypointsLifespanSelected : ""]
+            className={[
+              styles.keypointsLifespan,
+              isAutoLane ? styles.keypointsLifespanAuto : styles.keypointsLifespanManual,
+              selected ? styles.keypointsLifespanSelected : "",
+            ]
               .filter(Boolean)
               .join(" ")}
             style={lifespanStyle}
-            title={clip.label}
+            title={title}
             role="button"
             tabIndex={0}
             onClick={() => onClipClick?.(clip)}
@@ -98,6 +120,11 @@ function PoseKeypointsRow({
               if (e.key === "Enter" || e.key === " ") onClipClick?.(clip);
             }}
           >
+            {isAutoLane ? (
+              <span className={styles.keypointsAiBadge} aria-hidden="true">
+                AI{confText ? ` ${confText}` : ""}
+              </span>
+            ) : null}
             {points.map((t) => {
               const pointLeft = (t - clip.start) * pxPerSec;
               return (
@@ -117,6 +144,7 @@ function PoseKeypointsRow({
 
 PoseKeypointsRow.propTypes = {
   clips: PropTypes.array.isRequired,
+  laneKind: PropTypes.string,
   pxPerSec: PropTypes.number.isRequired,
   scrollLeft: PropTypes.number,
   viewportWidth: PropTypes.number,

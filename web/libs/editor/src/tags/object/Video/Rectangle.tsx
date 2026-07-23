@@ -32,6 +32,8 @@ const RectanglePure: FC<RectProps> = ({
   ...rest
 }) => {
   const style = useRegionStyles(reg, { includeFill: true });
+  // 설계-20: LayerSegment.confidence set → 자동(AI) 점선 bbox
+  const isAuto = !!(reg?.hasInferenceConfidence ?? (reg?.inferenceConfidence != null));
 
   const { realWidth: waWidth, realHeight: waHeight, scale: waScale } = workingArea;
 
@@ -72,6 +74,7 @@ const RectanglePure: FC<RectProps> = ({
         {...newBox}
         fill={style.fillColor ?? "#fff"}
         stroke={style.strokeColor}
+        dash={isAuto ? [6, 4] : undefined}
         strokeScaleEnabled={false}
         selected={selected}
         draggable={draggable}
