@@ -10,7 +10,6 @@ import ToolMixin from "../mixins/Tool";
 import { MultipleClicksDrawingTool } from "../mixins/DrawingTool";
 import { NodeViews } from "../components/Node/Node";
 import { observe } from "mobx";
-import { ff } from "@humansignal/core";
 
 const _Tool = types
   .model("VideoVectorTool", {
@@ -196,14 +195,11 @@ const _Tool = types
 
           self.currentArea = area;
 
+          // labels: Video.addVideoVectorRegion 또는 아래에서 적용
           const activeStates = videoObj.activeStates();
 
-          if (ff.isActive(ff.FF_MULTIPLE_LABELS_REGIONS)) {
-            // labels are already applied in addVideoVectorRegion
-          } else {
-            for (const tag of activeStates) {
-              area.setValue(tag);
-            }
+          for (const tag of activeStates || []) {
+            area.setValue(tag);
           }
         } else {
           self.currentArea = area;
