@@ -81,6 +81,13 @@ const NodeViews = {
     getContent: (node) => <span style={{ color: "#5a5a5a" }}>from {node.sequence[0]?.frame} frame</span>,
   }),
 
+  VideoVectorRegionModel: NodeView({
+    name: "Video Vector",
+    icon: IconPolygonTool,
+    altIcon: IconPolygonToolSmart,
+    getContent: (node) => <span style={{ color: "#5a5a5a" }}>from {node.sequence[0]?.frame} frame</span>,
+  }),
+
   PolygonRegionModel: NodeView({
     name: "Polygon",
     icon: IconPolygonTool,

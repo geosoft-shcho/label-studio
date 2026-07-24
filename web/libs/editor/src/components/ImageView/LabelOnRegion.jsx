@@ -300,6 +300,8 @@ const LabelOnKP = observer(({ item, color }) => {
 });
 
 const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjacent = false }) => {
+  if (!reg?.store) return null;
+
   const isTexting = !!reg.texting;
   const labelText = reg.getLabelText(",");
   // 설계-20: LayerSegment.confidence → score 뱃지 (0 포함)
@@ -309,6 +311,7 @@ const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjace
       : reg.confidence != null && Number.isFinite(Number(reg.confidence))
         ? Number(reg.confidence)
         : reg.score;
+  const showLabels = reg.store.settings?.showLabels;
 
   return (
     <LabelOnBbox
@@ -318,7 +321,7 @@ const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjace
       isTexting={isTexting}
       text={labelText}
       score={conf}
-      showLabels={reg.store.settings.showLabels}
+      showLabels={showLabels}
       zoomScale={scale}
       color={color}
       maxWidth={box.width + strokeWidth}

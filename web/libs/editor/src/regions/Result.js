@@ -57,6 +57,8 @@ const Result = types
       "rating",
       "pairwise",
       "videorectangle",
+      "videovector",
+      "videovectorlabels",
       "ranker",
       "savedsegmentattachments",
       "segmentattachments",
@@ -86,6 +88,7 @@ const Result = types
       brushlabels: types.maybe(types.array(types.string)),
       timeserieslabels: types.maybe(types.array(types.string)),
       timelinelabels: types.maybe(types.array(types.string)), // new one
+      videovectorlabels: types.maybe(types.array(types.string)),
       taxonomy: types.frozen(), // array of arrays of strings
       sequence: types.frozen(),
       // faivv: VideoRectangle 인스턴스 구분 (Labels Person + LayerSegment.id)

@@ -120,6 +120,8 @@ const Model = types.model({
     "paragraphlabels",
     "video",
     "videorectangle",
+    "videovector",
+    "videovectorlabels",
     "timelinelabels",
     "segmentattachments",
     "savedsegmentattachments",
