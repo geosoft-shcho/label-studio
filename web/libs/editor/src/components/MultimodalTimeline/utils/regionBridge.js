@@ -490,11 +490,15 @@ export function collectVideoObjectLaneClips(
 }
 
 function videoRegionSegmentId(region) {
-  if (!region) return "";
-  const fromRegion = String(region.segmentId || "").trim();
-  if (fromRegion) return fromRegion;
+  if (!regionIsUsable(region)) return "";
   try {
-    for (const r of region.results || []) {
+    const fromRegion = String(region.segmentId || "").trim();
+    if (fromRegion) return fromRegion;
+  } catch (e) {
+    /* noop */
+  }
+  try {
+    for (const r of safeRegionResults(region)) {
       const sid = String(r?.value?.segmentId || "").trim();
       if (sid) return sid;
     }
@@ -502,8 +506,12 @@ function videoRegionSegmentId(region) {
     /* noop */
   }
   // CreateLayerSegment 응답 id가 아직 없으면 LSF cleanId 폴백.
-  const clean = String(region.cleanId || region.id || "").trim();
-  return clean;
+  try {
+    const clean = String(region.cleanId || region.id || "").trim();
+    return clean;
+  } catch (e2) {
+    return "";
+  }
 }
 
 function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
@@ -567,7 +575,7 @@ function shortSegmentId(id) {
 
 /** LayerSegment.confidence → region (설계-20). 있으면 자동 태깅. */
 function regionConfidenceValue(region) {
-  if (!region) return null;
+  if (!regionIsUsable(region)) return null;
   try {
     const c = region.confidence;
     if (c != null && c !== "" && Number.isFinite(Number(c))) return Number(c);
@@ -575,7 +583,7 @@ function regionConfidenceValue(region) {
     /* noop */
   }
   try {
-    for (const r of region.results || []) {
+    for (const r of safeRegionResults(region)) {
       const c = r?.value?.confidence;
       if (c != null && c !== "" && Number.isFinite(Number(c))) return Number(c);
     }

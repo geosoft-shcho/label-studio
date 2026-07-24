@@ -3,13 +3,37 @@
  * enabled 구간은 끊기지 않게 표시하고, 마지막 enabled span 은 영상 끝까지 연장한다.
  */
 
+import { isAlive } from "mobx-state-tree";
+
+function regionIsUsable(region) {
+  if (!region) return false;
+  try {
+    return isAlive(region);
+  } catch (e) {
+    return false;
+  }
+}
+
+function safeRegionResults(region) {
+  if (!regionIsUsable(region)) return [];
+  try {
+    return region.results || [];
+  } catch (e) {
+    return [];
+  }
+}
+
 export function normalizeRegionSequence(region) {
-  if (!region) return [];
-  const direct = region.sequence;
-  if (Array.isArray(direct) && direct.length) return direct;
+  if (!regionIsUsable(region)) return [];
+  try {
+    const direct = region.sequence;
+    if (Array.isArray(direct) && direct.length) return direct;
+  } catch (e) {
+    /* noop */
+  }
 
   try {
-    const results = region.results || [];
+    const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
       const seq = results[i]?.value?.sequence;
       if (Array.isArray(seq) && seq.length) return seq;
@@ -220,6 +244,7 @@ export function keyframesSecInSpan(region, startFrame, endFrame, fps) {
 }
 
 export function videoRegionLabel(region) {
+  if (!regionIsUsable(region)) return "Object";
   try {
     if (Array.isArray(region.labels) && region.labels.length) {
       return region.labels.filter(Boolean).join(", ");
@@ -232,7 +257,7 @@ export function videoRegionLabel(region) {
     if (region.labeling?.mainValue?.length) {
       return String(region.labeling.mainValue[0]);
     }
-    const results = region.results || [];
+    const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
       const labels = results[i]?.value?.labels;
       if (Array.isArray(labels) && labels.length) return labels.join(", ");
@@ -267,8 +292,9 @@ export function controlNameOf(fromName) {
 }
 
 export function videoRegionControlName(region) {
+  if (!regionIsUsable(region)) return "";
   try {
-    const results = region.results || [];
+    const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
       const name = controlNameOf(results[i]?.from_name);
       if (name) return name;

@@ -116,11 +116,21 @@ const Model = types
     get selectedRegionId() {
       const ann = self.annotation;
       if (!ann?.regionStore) return "";
-      const regions = ann.regionStore.regions || [];
-      for (let i = 0; i < regions.length; i++) {
-        const r = regions[i];
-        if (!isAudioRegion(r)) continue;
-        if (r.selected === true || r.highlighted === true || r.inSelection === true) return r.id;
+      try {
+        const regions = ann.regionStore.regions || [];
+        for (let i = 0; i < regions.length; i++) {
+          const r = regions[i];
+          if (!isAudioRegion(r)) continue;
+          try {
+            if (r.selected === true || r.highlighted === true || r.inSelection === true) {
+              return r.id;
+            }
+          } catch (e) {
+            /* destroy 중 죽은 노드 필드 접근 */
+          }
+        }
+      } catch (e) {
+        return "";
       }
       return "";
     },

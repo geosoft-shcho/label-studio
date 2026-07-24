@@ -104,6 +104,13 @@ export const AudioUltraRegionModel = types
       },
 
       deleteRegion() {
+        // AreaMixin 과 동일: 선택 해제 후 destroy.
+        // 선택된 채 destroy 하면 MultimodalTimeline 등 reaction 이
+        // 죽은 AudioRegion.results 를 읽어 MST 오류가 난다.
+        if (self.annotation.isReadOnly()) return;
+        if (self.isReadOnly()) return;
+        if (self.selected) self.annotation.unselectAll(true);
+        if (self.destroyRegion) self.destroyRegion();
         self.annotation.deleteRegion(self);
       },
 
