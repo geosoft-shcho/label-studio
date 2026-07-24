@@ -37,14 +37,18 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 | lane 키 | UI 라벨 | 데이터 출처 | 비고 |
 |---------|---------|-------------|------|
-| `stt` | 오디오 구간 | `audioSegmentsFrom` + `transcript` | 수동·STT 공용. 드래그 생성·리사이즈 → Labels `audio_segments`. clip 글자는 **자막 본문**만. 저장은 항상 `kind=textarea` (labels 레이어 아님) |
+| `stt` | STT 자동 | `audioSegmentsFrom` + transcript + **confidence set** | AI 전사 |
+| `audio_manual` | 수동 자막 | 동일 캐리어 + **confidence unset** | 사람 편집·검수 clear |
 | `object` | 수동 객체 | `videoObjectsFrom` (`box`) + **confidence unset** | 수동 VideoRectangle |
 | `pose_object` | 자동(POSE) | `poseObjectsFrom` (`pose_box`) + **confidence set** | 추론 VideoRectangle |
 | `saved_attachment` | 저장 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
 
 레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.
-unset(검수 clear 포함) → `object`, set(0 포함) → `pose_object`.
-`kind`/`displayName`(welding-pose vs video_objects)만으로 분기하지 않는다.
+unset(검수 clear 포함) → `audio_manual` / `object`, set(0 포함) → `stt` / `pose_object`.
+`kind`/`displayName`만으로 분기하지 않는다.
+
+Audio region은 `AudioUltraRegionModel.confidence`(및 Result.value.confidence)에
+hydrate 시 반영한다. MST에 필드가 없으면 inject 값이 버려져 전부 수동 레인으로 간다.
 
 `attachment` lane(세션 bucket 요약)은 embed `SegmentAttachmentsPanel`로 대체되어 **기본 showLanes에서 제외**.
 

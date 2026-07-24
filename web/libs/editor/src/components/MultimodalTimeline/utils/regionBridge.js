@@ -590,6 +590,13 @@ function regionConfidenceValue(region) {
   } catch (e2) {
     /* noop */
   }
+  // AudioRegion: assignRegionConfidence 가 score 에도 기록 (RegionsMixin).
+  try {
+    const s = region.score;
+    if (s != null && s !== "" && Number.isFinite(Number(s))) return Number(s);
+  } catch (e3) {
+    /* noop */
+  }
   return null;
 }
 

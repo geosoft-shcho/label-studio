@@ -12,6 +12,10 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/tags/object/Video/mediaToCanvas.js` | Media % → canvas px (zoom/pan); shared by bbox & keypoints |
 | `web/libs/editor/src/regions/videoKeypoints.js` | Keypoint interpolation on VideoRectangle `sequence` |
 | `web/libs/editor/src/regions/VideoRectangleRegion.js` | `bboxCoords` / `bboxCoordsCanvas`; `keypointsCoordsCanvas` |
+| `web/libs/editor/src/regions/VideoRegion.js` | 설계-20 `confidence` (pose/object 레인) |
+| `web/libs/editor/src/regions/AudioRegion/AudioUltraRegionModel.js` | 설계-20 `confidence` (stt/audio_manual 레인) |
+| `web/libs/editor/src/regions/AudioRegion/AudioRegionModel.js` | 동일 (레거시 WaveSurfer) |
+| `web/libs/editor/src/regions/Result.js` | `value.confidence` MST 필드 (Audio/Video hydrate) |
 | `web/libs/editor/src/components/InteractiveOverlays/BoundingBox.js` | `videorectangleregion` hit-test bbox |
 | `web/libs/editor/src/components/InteractiveOverlays/NodesConnector.js` | Reactive watcher for video rectangle regions |
 | `web/libs/editor/src/tags/control/SegmentAttachments.jsx` | 선택 구간 첨부 Control (`SegmentAttachments`, 업로드·삭제) |

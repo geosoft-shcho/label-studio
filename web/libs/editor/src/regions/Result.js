@@ -93,6 +93,8 @@ const Result = types
       personId: types.maybe(types.string),
       framesCount: types.maybe(types.number),
       duration: types.maybe(types.number),
+      // 설계-20: LayerSegment.confidence → STT/pose 자동 레인 (Audio·Video 공용)
+      confidence: types.maybe(types.number),
     }),
     // info about object and region
     meta: types.frozen(),

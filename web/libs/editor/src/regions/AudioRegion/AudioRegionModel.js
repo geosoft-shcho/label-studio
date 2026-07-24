@@ -3,6 +3,13 @@ import { AudioModel } from "../../tags/object/AudioNext";
 import Utils from "../../utils";
 import Constants from "../../core/Constants";
 
+/** 설계-20: LayerSegment.confidence set(0 포함) → STT 자동 레인. */
+function finiteConfidence(v) {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export const AudioRegionModel = types
   .model("AudioRegionModel", {
     type: "audioregion",
@@ -13,6 +20,20 @@ export const AudioRegionModel = types
     channel: types.optional(types.number, 0),
 
     selectedregionbg: types.optional(types.string, "rgba(0, 0, 0, 0.5)"),
+    // 설계-20: LayerSegment.confidence (unset=수동 자막, set=STT 자동)
+    confidence: types.maybeNull(types.number),
+  })
+  .preProcessSnapshot((snapshot) => {
+    const value = snapshot.value || {};
+    const conf =
+      finiteConfidence(snapshot.confidence) ??
+      finiteConfidence(value.confidence) ??
+      finiteConfidence(snapshot.score);
+    return {
+      ...snapshot,
+      confidence: conf,
+      score: conf != null ? conf : snapshot.score ?? null,
+    };
   })
   .volatile(() => ({
     hideable: true,
@@ -52,12 +73,14 @@ export const AudioRegionModel = types
      * @returns {AudioRegionResult}
      */
     serialize() {
+      const conf = finiteConfidence(self.confidence) ?? finiteConfidence(self.score);
       const res = {
         original_length: self.object._ws?.getDuration(),
         value: {
           start: self.start,
           end: self.end,
           channel: self.channel,
+          ...(conf != null ? { confidence: conf } : {}),
         },
       };
 
