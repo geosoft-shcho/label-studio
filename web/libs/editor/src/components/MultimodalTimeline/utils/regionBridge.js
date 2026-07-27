@@ -643,7 +643,8 @@ function logConfidenceLaneSplit(rows) {
 
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
-  // box + pose_box 를 한 풀로 모은 뒤 confidence 로 수동/자동 레인 분기 (설계-20).
+  // box + video_vector(수동) + pose 를 한 풀로 모은 뒤 confidence 로 수동/자동 레인 분기 (설계-20).
+  // 수동 video_vector는 object 레인 (pose_object 금지).
   const boxFrom = item.videoobjectsfrom || "box";
   const poseFrom = item.poseobjectsfrom || "pose_box";
   const allVideoClips = collectVideoObjectLaneClips(
@@ -670,7 +671,10 @@ export function collectAllLaneClips(item) {
       control: clip.meta?.controlName || "",
       hasConfidence: hasConf,
       confidence: conf,
-      poseBoxFallback: !hasConf && videoRegionControlName(clip.region) === "pose_box",
+      poseBoxFallback:
+        !hasConf &&
+        ["pose_box", "pose"].includes(videoRegionControlName(clip.region)),
+      // 수동 video_vector → object 레인 (confidence unset). pose_object 금지.
       lane: isAuto ? "pose_object" : "object",
       laneHint: isAuto ? "pose_object(AI)" : "object(human)",
     });

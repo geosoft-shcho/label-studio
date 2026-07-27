@@ -84,9 +84,20 @@ const Model = types
     },
 
     get videoControl() {
+      // 레거시 VideoRectangle 전용. VideoPoseLabels(videoposelabels)는 제외.
+      return self.annotation.toNames.get(self.name)?.find(
+        (s) =>
+          s.type.includes("videorectangle") ||
+          (s.type.includes("video") &&
+            !s.type.includes("videovector") &&
+            !s.type.includes("videopose")),
+      );
+    },
+
+    get videoPoseControl() {
       return self.annotation.toNames
         .get(self.name)
-        ?.find((s) => s.type.includes("video") && !s.type.includes("videovector"));
+        ?.find((s) => s.type.includes("videopose"));
     },
 
     get videoVectorControl() {
@@ -208,6 +219,11 @@ const Model = types
       },
 
       addVideoRegion(data) {
+        // VideoPoseLabels 단일 태그: bbox도 pose control로 생성
+        if (self.videoPoseControl) {
+          return self.addVideoPoseRegion(data);
+        }
+
         const control = self.videoControl;
         const value = {};
 
@@ -235,7 +251,44 @@ const Model = types
         return area;
       },
 
+      addVideoPoseRegion(data) {
+        const control = self.videoPoseControl;
+
+        if (!control) {
+          console.error("No video pose control is found");
+          return;
+        }
+
+        const sequence = [
+          {
+            frame: self.frame,
+            enabled: true,
+            rotation: 0,
+            ...data,
+          },
+        ];
+
+        const active = self.activeStates()?.[0];
+        const labeling =
+          active && typeof active.selectedValues === "function"
+            ? { [active.valueType]: active.selectedValues() }
+            : {};
+
+        const area = self.annotation.createResult({ sequence }, labeling, control, self);
+
+        self.activeStates()?.forEach((tag) => {
+          area.setValue(tag);
+        });
+
+        return area;
+      },
+
       addVideoVectorRegion(data) {
+        // VideoPoseLabels 단일 태그 우선
+        if (self.videoPoseControl) {
+          return self.addVideoPoseRegion(data);
+        }
+
         const control = self.videoVectorControl;
 
         if (!control) {
@@ -251,7 +304,13 @@ const Model = types
           },
         ];
 
-        const area = self.annotation.createResult({ sequence }, {}, control, self);
+        const active = self.activeStates()?.[0];
+        const labeling =
+          active && typeof active.selectedValues === "function"
+            ? { [active.valueType]: active.selectedValues() }
+            : {};
+
+        const area = self.annotation.createResult({ sequence }, labeling, control, self);
 
         self.activeStates()?.forEach((tag) => {
           area.setValue(tag);

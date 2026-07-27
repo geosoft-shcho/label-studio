@@ -1033,7 +1033,12 @@ const _Annotation = types
         const tagNames = self.names;
 
         // Clear non-existent labels
-        if (obj.type.endsWith("labels")) {
+        // faivv: VideoVector/VideoPose inject 결과가 value.*labels 없이 type만 *labels 인 경우
+        // `obj.value[key].length` TypeError 방지.
+        if (typeof obj.type === "string" && obj.type.endsWith("labels")) {
+          if (!obj.value || typeof obj.value !== "object") {
+            obj.value = {};
+          }
           const keys = Object.keys(obj.value);
 
           for (let key of keys) {
@@ -1046,7 +1051,13 @@ const _Annotation = types
                 const labelsContainer = tagNames.get(obj.from_name) ?? tagNames.get("labels");
                 const value = obj.value[key];
 
-                if (value && value.length && labelsContainer.type.endsWith("labels")) {
+                if (
+                  value &&
+                  value.length &&
+                  labelsContainer &&
+                  typeof labelsContainer.type === "string" &&
+                  labelsContainer.type.endsWith("labels")
+                ) {
                   const filteredValue = value.filter((labelName) => !!labelsContainer.findLabel(labelName));
                   const oldKey = key;
 
@@ -1067,7 +1078,12 @@ const _Annotation = types
               // detect most relevant label tags if that one from from_name is missing
               // can be useful for predictions in old format with config in new format:
               // Rectangle + Labels -> RectangleLabels
-              if (!tagNames.has(obj.from_name) || (!obj.value[key].length && !tagNames.get(obj.from_name).allowempty)) {
+              const labelValue = obj.value[key];
+              const labelLen = Array.isArray(labelValue) ? labelValue.length : 0;
+              if (
+                !tagNames.has(obj.from_name) ||
+                (!labelLen && !tagNames.get(obj.from_name)?.allowempty)
+              ) {
                 delete obj.value[key];
                 if (tagNames.has(obj.to_name)) {
                   // Redirect references to existent tool

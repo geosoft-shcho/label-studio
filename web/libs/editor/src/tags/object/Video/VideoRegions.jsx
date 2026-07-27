@@ -2,8 +2,8 @@ import chroma from "chroma-js";
 import { clamp } from "lodash";
 import { observer } from "mobx-react";
 import { getParentOfType } from "mobx-state-tree";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Layer, Rect, Stage, Transformer } from "react-konva";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import Constants from "../../../core/Constants";
 import { Annotation } from "../../../stores/Annotation/Annotation";
 import { fixMobxObserve } from "../../../utils/utilities";
@@ -11,6 +11,7 @@ import { Rectangle } from "./Rectangle";
 import { VideoVectorShape } from "./VideoVector";
 import { createBoundingBoxGetter, createOnDragMoveHandler } from "./TransformTools";
 import ToolsManager from "../../../tools/Manager";
+import { faivvVideoManualDebug } from "./faivvVideoManualDebug";
 
 export const MIN_SIZE = 5;
 
@@ -101,6 +102,19 @@ const VideoRegionsPure = ({
   useEffect(() => {
     if (!isDrawing && newRegion) {
       const { width: waWidth, height: waHeight } = videoDimensions;
+      // React 17 + Konva: setDrawingMode(false)가 동기 flush되면 click 경로에서도
+      // newRegion(0×0)이 여기로 들어올 수 있음 → 스킵 (라벨 unselect 방지)
+      if (Math.abs(newRegion.width) < MIN_SIZE && Math.abs(newRegion.height) < MIN_SIZE) {
+        faivvVideoManualDebug("bbox.addVideoRegion.skip", {
+          reason: "too_small",
+          width: newRegion.width,
+          height: newRegion.height,
+          frame: item.frame,
+        });
+        setNewRegion(null);
+        return;
+      }
+
       let x = (newRegion.x / waWidth) * 100;
       let y = (newRegion.y / waHeight) * 100;
       let width = (newRegion.width / waWidth) * 100;
@@ -118,6 +132,25 @@ const VideoRegionsPure = ({
 
       const fixedRegion = { x, y, width, height };
 
+      faivvVideoManualDebug("bbox.addVideoRegion", {
+        frame: item.frame,
+        region: {
+          x: Math.round(x * 100) / 100,
+          y: Math.round(y * 100) / 100,
+          width: Math.round(width * 100) / 100,
+          height: Math.round(height * 100) / 100,
+        },
+        hasPoseControl: !!item.videoPoseControl,
+        hasRectControl: !!item.videoRectangleControl,
+        controlSelected: !!item.videoPoseControl?.isSelected,
+        activeLabels: (item.activeStates?.() || []).flatMap((t) => {
+          try {
+            return t.selectedValues?.() || [];
+          } catch {
+            return [];
+          }
+        }),
+      });
       item.addVideoRegion(fixedRegion);
       setNewRegion(null);
     }
@@ -144,6 +177,9 @@ const VideoRegionsPure = ({
       const selected = manager?.findSelectedTool();
       const drawing = manager?.findDrawingTool();
 
+      // VideoPoseTool 우선 (VideoPoseLabels 단일 태그)
+      if (drawing?.toolName === "VideoPoseTool") return drawing;
+      if (selected?.toolName === "VideoPoseTool") return selected;
       if (drawing?.toolName === "VideoVectorTool") return drawing;
       if (selected?.toolName === "VideoVectorTool") return selected;
     } catch {
@@ -152,11 +188,19 @@ const VideoRegionsPure = ({
     return null;
   }, [item.name]);
 
+  const isPoseDrawingTool = (tool) =>
+    tool && (tool.toolName === "VideoPoseTool" || tool.toolName === "VideoVectorTool");
+
+  // VideoPose: 첫 제스처만 드래그=bbox / 클릭=점 구분.
+  // drawing 중·resume은 VideoVector와 동일하게 툴로 직접 전달.
+  const poseGestureRef = useRef(null);
+
   const handleMouseDown = (e) => {
     if (item.annotation?.isReadOnly()) return;
 
     const vectorTool = getVectorTool();
 
+    // VideoVector와 동일: 이미 drawing/resume이면 툴에 바로 전달
     if (vectorTool?.isDrawing || vectorTool?.canResumeDrawing) {
       const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
@@ -171,6 +215,20 @@ const VideoRegionsPure = ({
 
     if (!isInBounds) return;
 
+    if (isPoseDrawingTool(vectorTool)) {
+      poseGestureRef.current = { x, y, mode: "pending", tool: vectorTool, evt: e.evt };
+      faivvVideoManualDebug("gesture.down", {
+        tool: vectorTool?.toolName,
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        frame: item.frame,
+      });
+      item.annotation.unselectAreas();
+      setNewRegion({ x, y, width: 0, height: 0 });
+      setDrawingMode(true);
+      return;
+    }
+
     if (vectorTool) {
       vectorTool.event("mousedown", e.evt, [x, y]);
       return;
@@ -183,8 +241,9 @@ const VideoRegionsPure = ({
 
   const handleMouseMove = (e) => {
     const vectorTool = getVectorTool();
+    const gesture = poseGestureRef.current;
 
-    if (vectorTool?.isDrawing) {
+    if (vectorTool?.isDrawing && !gesture) {
       const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
       vectorTool.event("mousemove", e.evt, [x, y]);
@@ -195,6 +254,19 @@ const VideoRegionsPure = ({
 
     const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
+    if (gesture?.mode === "pending") {
+      const dx = Math.abs(x - gesture.x);
+      const dy = Math.abs(y - gesture.y);
+      if (dx >= MIN_SIZE || dy >= MIN_SIZE) {
+        poseGestureRef.current = { ...gesture, mode: "bbox" };
+        faivvVideoManualDebug("gesture.bboxMode", {
+          dx: Math.round(dx),
+          dy: Math.round(dy),
+          frame: item.frame,
+        });
+      }
+    }
+
     setNewRegion((region) => ({
       ...region,
       width: x - region.x,
@@ -204,8 +276,10 @@ const VideoRegionsPure = ({
 
   const handleMouseUp = (e) => {
     const vectorTool = getVectorTool();
+    const gesture = poseGestureRef.current;
 
-    if (vectorTool?.isDrawing) {
+    // VideoVector와 동일: drawing 중이면 툴 mouseup (점 commit; finished=false면 연속 유지)
+    if (vectorTool?.isDrawing && !gesture) {
       const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
       vectorTool.event("mouseup", e.evt, [x, y]);
@@ -215,6 +289,70 @@ const VideoRegionsPure = ({
     if (!isDrawing || item.annotation?.isReadOnly()) return false;
 
     const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
+
+    if (gesture && isPoseDrawingTool(gesture.tool)) {
+      const dx = Math.abs(x - gesture.x);
+      const dy = Math.abs(y - gesture.y);
+      const isBbox = gesture.mode === "bbox" || dx >= MIN_SIZE || dy >= MIN_SIZE;
+
+      poseGestureRef.current = null;
+
+      if (isBbox) {
+        if (dx < MIN_SIZE && dy < MIN_SIZE) {
+          // React 17+Konva: newRegion을 먼저 비운 뒤 isDrawing=false (0×0 createResult→라벨 해제 방지)
+          setNewRegion(null);
+          setDrawingMode(false);
+          faivvVideoManualDebug("bbox.cancel", { reason: "too_small", dx, dy });
+        } else {
+          setNewRegion((region) => ({ ...region, width: x - region.x, height: y - region.y }));
+          setDrawingMode(false);
+          faivvVideoManualDebug("bbox.commit", {
+            tool: gesture.tool?.toolName,
+            x: Math.round(gesture.x * 10) / 10,
+            y: Math.round(gesture.y * 10) / 10,
+            width: Math.round((x - gesture.x) * 10) / 10,
+            height: Math.round((y - gesture.y) * 10) / 10,
+            frame: item.frame,
+            media: {
+              w: videoDimensions?.width,
+              h: videoDimensions?.height,
+            },
+          });
+        }
+        return;
+      }
+
+      // 짧은 클릭 → VideoVector와 동일: 툴 mousedown+mouseup (KonvaVector 점·선)
+      // newRegion을 먼저 null → 이후 isDrawing=false (React 17 비배치에서 0×0 bbox 생성 방지)
+      setNewRegion(null);
+      setDrawingMode(false);
+      const tool = gesture.tool;
+      const poseCtrl = item.videoPoseControl;
+      faivvVideoManualDebug("keypoint.click", {
+        tool: tool?.toolName,
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        frame: item.frame,
+        toolIsDrawing: !!tool?.isDrawing,
+        canResume: !!tool?.canResumeDrawing,
+        controlSelected: !!poseCtrl?.isSelected,
+        controlType: poseCtrl?.type,
+        activeLabels: (item.activeStates?.() || []).flatMap((t) => {
+          try {
+            return t.selectedValues?.() || [];
+          } catch {
+            return [];
+          }
+        }),
+        media: {
+          w: videoDimensions?.width,
+          h: videoDimensions?.height,
+        },
+      });
+      tool.event("mousedown", gesture.evt || e.evt, [gesture.x, gesture.y]);
+      tool.event("mouseup", e.evt, [x, y]);
+      return;
+    }
 
     if (Math.abs(newRegion.x - x) < MIN_SIZE && Math.abs(newRegion.y - y) < MIN_SIZE) {
       setNewRegion(null);
@@ -336,6 +474,22 @@ const Shape = observer(({ reg, frame, stageRef, ...props }) => {
     reg.setHighlight(false);
     reg.onClickRegion(e);
   };
+
+  if (reg.type === "videoposeregion") {
+    const hasBbox =
+      box &&
+      box.width != null &&
+      box.height != null &&
+      Number(box.width) > 0 &&
+      Number(box.height) > 0;
+    // VideoVector와 동일: pose region은 항상 VectorShape mount (점·선 표시)
+    return (
+      <Group>
+        {hasBbox ? <Rectangle reg={reg} box={box} frame={frame} onClick={handleClick} {...props} /> : null}
+        <VideoVectorShape reg={reg} box={box} frame={frame} onClick={handleClick} {...props} />
+      </Group>
+    );
+  }
 
   if (reg.type === "videovectorregion") {
     return <VideoVectorShape reg={reg} box={box} frame={frame} onClick={handleClick} {...props} />;

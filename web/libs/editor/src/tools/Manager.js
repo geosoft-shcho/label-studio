@@ -90,7 +90,17 @@ class ToolsManager {
       if (typeof t.selected !== "undefined") t.setSelected(false);
     });
 
-    const stage = this.obj?.stageRef;
+    // Image stores the Konva Stage on stageRef; Video stores a React ref
+    // (stageRef.current). VideoVector tool selection runs during control
+    // afterAttach — calling .container() on the React ref throws
+    // "t.container is not a function".
+    const stageRef = this.obj?.stageRef;
+    const stage =
+      stageRef && typeof stageRef.container === "function"
+        ? stageRef
+        : stageRef?.current && typeof stageRef.current.container === "function"
+          ? stageRef.current
+          : null;
 
     if (stage) {
       stage.container().style.cursor = "default";

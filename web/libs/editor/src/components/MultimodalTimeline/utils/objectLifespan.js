@@ -259,8 +259,9 @@ export function videoRegionLabel(region) {
     }
     const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
-      const labels = results[i]?.value?.labels;
-      if (Array.isArray(labels) && labels.length) return labels.join(", ");
+      const v = results[i]?.value || {};
+      const names = v.videovectorlabels || v.videoposelabels || v.labels;
+      if (Array.isArray(names) && names.length) return names.filter(Boolean).join(", ");
     }
   } catch (e) {
     /* noop */
@@ -330,7 +331,12 @@ export function collectVideoObjectRegions(videoObject, annotation) {
   const push = (region) => {
     if (!region?.id || seen.has(region.id)) return;
     const type = (region.type || "").toLowerCase();
-    if (!type.includes("videorectangle")) return;
+    if (
+      !type.includes("videorectangle") &&
+      !type.includes("videovector") &&
+      !type.includes("videopose")
+    )
+      return;
     seen.add(region.id);
     out.push(region);
   };

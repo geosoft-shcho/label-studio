@@ -85,9 +85,10 @@ const Model = types
       "TimeSeriesLabels",
       "ParagraphLabels",
       "VideoVectorLabels",
+      "VideoPoseLabels",
     ]),
   })
-  .volatile((self) => {
+    .volatile((self) => {
     return {
       initiallySelected: self.selected,
       isEmpty: false,

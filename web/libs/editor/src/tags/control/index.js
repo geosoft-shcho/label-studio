@@ -17,6 +17,8 @@ import { ParagraphLabelsModel } from "./ParagraphLabels";
 import { TimeSeriesLabelsModel } from "./TimeSeriesLabels";
 import { TimelineLabelsModel } from "./TimelineLabels";
 import { VideoRectangleModel } from "./VideoRectangle";
+import { VideoPoseModel } from "./VideoPose";
+import { VideoPoseLabelsModel } from "./VideoPoseLabels";
 import { VideoVectorModel } from "./VideoVector";
 import { VideoVectorLabelsModel } from "./VideoVectorLabels";
 
@@ -54,6 +56,8 @@ export {
   TimeSeriesLabelsModel,
   TimelineLabelsModel,
   VideoRectangleModel,
+  VideoPoseModel,
+  VideoPoseLabelsModel,
   VideoVectorModel,
   VideoVectorLabelsModel,
   BrushLabelsModel,

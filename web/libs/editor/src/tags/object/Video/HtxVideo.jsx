@@ -179,7 +179,12 @@ const HtxVideoView = ({ item, store }) => {
   );
 
   const supportsRegions = useMemo(() => {
-    return isDefined(item?.videoControl) || isDefined(item?.videoVectorControl);
+    // VideoPoseLabels 단일 태그: videoPoseControl 만 있어도 오버레이 스테이지 필요
+    return (
+      isDefined(item?.videoControl) ||
+      isDefined(item?.videoVectorControl) ||
+      isDefined(item?.videoPoseControl)
+    );
   }, [item]);
 
   const supportsTimelineRegions = useMemo(() => {
@@ -472,9 +477,47 @@ const HtxVideoView = ({ item, store }) => {
 
   const regions = item.regs.map((reg) => {
     const color = reg.style?.fillcolor ?? reg.tag?.fillcolor ?? defaultStyle.fillcolor;
-    const label = reg.labels.join(", ") || "Empty";
+    // VideoVectorLabels → value.videovectorlabels (AreaMixin labels / labeling.mainValue)
+    let label = "";
+    try {
+      label = (reg.labels || []).filter(Boolean).join(", ");
+    } catch (e) {
+      label = "";
+    }
+    if (!label) {
+      try {
+        const results = reg.results || [];
+        for (const r of results) {
+          const v = r?.value || {};
+          const names =
+            v.videovectorlabels || v.videoposelabels || v.labels || v.videovector || [];
+          if (Array.isArray(names) && names.length) {
+            label = names.filter(Boolean).join(", ");
+            break;
+          }
+        }
+      } catch (e2) {
+        /* noop */
+      }
+    }
+    if (!label) label = "Empty";
     const timeline = reg.type.includes("timeline");
-    const sequence = reg.sequence;
+    let sequence = reg.sequence;
+    try {
+      if (!Array.isArray(sequence) || !sequence.length) {
+        const fromResult = (reg.results || []).find((r) => Array.isArray(r?.value?.sequence))?.value
+          ?.sequence;
+        if (Array.isArray(fromResult) && fromResult.length) sequence = fromResult;
+      }
+    } catch (e3) {
+      /* noop */
+    }
+    // Frames KeypointsVirtual: sequence.length===0 && !timeline → 행 미표시.
+    // 수동 VideoVector 작성 직후에도 최소 1 keyframe 행을 보장한다.
+    if ((!Array.isArray(sequence) || !sequence.length) && String(reg.type || "").includes("videovector")) {
+      const frame = item.frame || item.currentFrame || 1;
+      sequence = [{ frame, enabled: true }];
+    }
 
     return {
       id: reg.cleanId,
@@ -483,7 +526,7 @@ const HtxVideoView = ({ item, store }) => {
       color,
       visible: !reg.hidden,
       selected: reg.selected || reg.inSelection,
-      sequence,
+      sequence: Array.isArray(sequence) ? sequence : [],
       timeline,
     };
   });
@@ -502,6 +545,64 @@ const HtxVideoView = ({ item, store }) => {
       selected: true,
       sequence: [],
       timeline: true,
+    });
+  }
+
+  // ①-2 VideoVectorLabels: 선택 라벨을 lsf-timeline__view 에 미리 표시 (TimelineLabels UX와 동일)
+  if (
+    item.videoVectorControl?.selectedLabels?.length &&
+    !item.annotation.selectionSize
+  ) {
+    const label = item.videoVectorControl.selectedLabels[0];
+    const frame = item.frame || item.currentFrame || 1;
+    regions.unshift({
+      id: "new-videovector",
+      label: label._value || label.value || "Empty",
+      color: label.background ?? defaultStyle.fillcolor,
+      visible: true,
+      selected: true,
+      sequence: [{ frame, enabled: true }],
+      timeline: false,
+    });
+  }
+
+  // ①-3 VideoPoseLabels: 선택 라벨 미리보기 행
+  if (
+    item.videoPoseControl?.selectedLabels?.length &&
+    !item.videoVectorControl?.selectedLabels?.length &&
+    !item.annotation.selectionSize
+  ) {
+    const label = item.videoPoseControl.selectedLabels[0];
+    const frame = item.frame || item.currentFrame || 1;
+    regions.unshift({
+      id: "new-videopose",
+      label: label._value || label.value || "Empty",
+      color: label.background ?? defaultStyle.fillcolor,
+      visible: true,
+      selected: true,
+      sequence: [{ frame, enabled: true }],
+      timeline: false,
+    });
+  }
+
+  // ① video_labels + box: 선택 라벨 미리보기 행
+  const videoLabelsControl = item.annotation?.names?.get?.("video_labels");
+  if (
+    videoLabelsControl?.selectedLabels?.length &&
+    !item.videoVectorControl?.selectedLabels?.length &&
+    !item.videoPoseControl?.selectedLabels?.length &&
+    !item.annotation.selectionSize
+  ) {
+    const label = videoLabelsControl.selectedLabels[0];
+    const frame = item.frame || item.currentFrame || 1;
+    regions.unshift({
+      id: "new-videorectangle",
+      label: label._value || label.value || "Empty",
+      color: label.background ?? defaultStyle.fillcolor,
+      visible: true,
+      selected: true,
+      sequence: [{ frame, enabled: true }],
+      timeline: false,
     });
   }
 

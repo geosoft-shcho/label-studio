@@ -15,6 +15,7 @@ import { TimelineRegionModel } from "./TimelineRegion";
 import { TimeSeriesRegionModel } from "./TimeSeriesRegion";
 import { ParagraphsRegionModel } from "./ParagraphsRegion";
 import { VideoRectangleRegionModel } from "./VideoRectangleRegion";
+import { VideoPoseRegionModel } from "./VideoPoseRegion";
 import { VideoVectorRegionModel } from "./VideoVectorRegion";
 
 // general Area type for classification Results which doesn't belong to any real Area
@@ -65,17 +66,21 @@ const Area = types.union(
       const available = Registry.getAvailableAreas(tag.type, sn);
       // union of all available Areas for this Object type
 
-      // video: sequence+vertices → VideoVector, sequence → VideoRectangle, else Timeline
+      // video: sequence(+vertices/+bbox) → VideoPose (단일 태그). Timeline은 sequence 없음.
       if (tag.type === "video") {
         const seq = sn.sequence || sn.value?.sequence;
 
         if (seq) {
           const firstItem = Array.isArray(seq) ? seq[0] : null;
+          const hasVertices =
+            firstItem?.vertices !== undefined || sn.value?.vertices !== undefined;
+          const hasBbox =
+            firstItem && (firstItem.x !== undefined || firstItem.width !== undefined);
 
-          if (firstItem?.vertices !== undefined || sn.value?.vertices !== undefined) {
-            return VideoVectorRegionModel;
+          if (hasVertices || hasBbox) {
+            return VideoPoseRegionModel;
           }
-          return VideoRectangleRegionModel;
+          return VideoPoseRegionModel;
         }
         return TimelineRegionModel;
       }
@@ -95,6 +100,7 @@ const Area = types.union(
   PolygonRegionModel,
   BrushRegionModel,
   VideoRectangleRegionModel,
+  VideoPoseRegionModel,
   VideoVectorRegionModel,
   ClassificationArea,
 );

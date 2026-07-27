@@ -88,6 +88,13 @@ const NodeViews = {
     getContent: (node) => <span style={{ color: "#5a5a5a" }}>from {node.sequence[0]?.frame} frame</span>,
   }),
 
+  VideoPoseRegionModel: NodeView({
+    name: "Video Pose",
+    icon: IconRectangleTool,
+    altIcon: IconRectangleToolSmart,
+    getContent: (node) => <span style={{ color: "#5a5a5a" }}>from {node.sequence[0]?.frame} frame</span>,
+  }),
+
   PolygonRegionModel: NodeView({
     name: "Polygon",
     icon: IconPolygonTool,
