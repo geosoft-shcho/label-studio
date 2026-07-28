@@ -191,31 +191,73 @@ const VideoRegionsPure = ({
   const isPoseDrawingTool = (tool) =>
     tool && (tool.toolName === "VideoPoseTool" || tool.toolName === "VideoVectorTool");
 
-  // VideoPose: 첫 제스처만 드래그=bbox / 클릭=점 구분.
-  // drawing 중·resume은 VideoVector와 동일하게 툴로 직접 전달.
+  // VideoPose: 빈 Stage 제스처 → 드래그=bbox / 클릭=점.
+  // canResumeDrawing만으로 툴에 넘기면 hydrate된 리전이 빈 영역 드래그(bbox)를 가로챔.
   const poseGestureRef = useRef(null);
 
   const handleMouseDown = (e) => {
     if (item.annotation?.isReadOnly()) return;
 
     const vectorTool = getVectorTool();
+    const hitStage = e.target === stageRef.current;
+    const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
-    // VideoVector와 동일: 이미 drawing/resume이면 툴에 바로 전달
-    if (vectorTool?.isDrawing || vectorTool?.canResumeDrawing) {
-      const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
-
+    // 이미 drawing 중인 세션만 툴로 직행
+    if (vectorTool?.isDrawing) {
+      faivvVideoManualDebug("gesture.gate", {
+        path: "tool",
+        reason: "isDrawing",
+        hitStage,
+        tool: vectorTool?.toolName,
+        frame: item.frame,
+      });
       vectorTool.event("mousedown", e.evt, [x, y]);
       return;
     }
 
-    if (e.target !== stageRef.current) return;
+    // keypoints resume: 기존 shape 히트일 때만 (빈 Stage는 bbox/click 제스처 유지)
+    if (vectorTool?.canResumeDrawing && !hitStage) {
+      faivvVideoManualDebug("gesture.gate", {
+        path: "tool",
+        reason: "resume_hit_shape",
+        hitStage,
+        tool: vectorTool?.toolName,
+        canResume: true,
+        frame: item.frame,
+      });
+      vectorTool.event("mousedown", e.evt, [x, y]);
+      return;
+    }
 
-    const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
+    // VideoVectorTool만: 기존처럼 빈 Stage에서도 resume 허용
+    if (vectorTool?.toolName === "VideoVectorTool" && vectorTool?.canResumeDrawing) {
+      faivvVideoManualDebug("gesture.gate", {
+        path: "tool",
+        reason: "videovector_resume",
+        hitStage,
+        frame: item.frame,
+      });
+      vectorTool.event("mousedown", e.evt, [x, y]);
+      return;
+    }
+
+    if (!hitStage) return;
+
     const isInBounds = inBounds(x, y);
 
     if (!isInBounds) return;
 
     if (isPoseDrawingTool(vectorTool)) {
+      faivvVideoManualDebug("gesture.gate", {
+        path: "bbox",
+        reason: "empty_stage",
+        hitStage: true,
+        tool: vectorTool?.toolName,
+        canResume: !!vectorTool?.canResumeDrawing,
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        frame: item.frame,
+      });
       poseGestureRef.current = { x, y, mode: "pending", tool: vectorTool, evt: e.evt };
       faivvVideoManualDebug("gesture.down", {
         tool: vectorTool?.toolName,
@@ -260,6 +302,13 @@ const VideoRegionsPure = ({
       if (dx >= MIN_SIZE || dy >= MIN_SIZE) {
         poseGestureRef.current = { ...gesture, mode: "bbox" };
         faivvVideoManualDebug("gesture.bboxMode", {
+          dx: Math.round(dx),
+          dy: Math.round(dy),
+          frame: item.frame,
+        });
+        faivvVideoManualDebug("bbox.preview", {
+          x: Math.round(gesture.x * 10) / 10,
+          y: Math.round(gesture.y * 10) / 10,
           dx: Math.round(dx),
           dy: Math.round(dy),
           frame: item.frame,
