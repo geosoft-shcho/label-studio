@@ -416,6 +416,132 @@ export function collectSavedAttachmentLaneClips(savedControl) {
   return clips;
 }
 
+/**
+ * endpoint region → 초 구간. audio는 start/end, video는 lifespan 합집합.
+ * 유효 구간 없으면 null.
+ */
+function regionTimeSpanSec(region, videoObject, fps, durationSec) {
+  if (!regionIsUsable(region)) return null;
+
+  if (isAudioRegion(region)) {
+    try {
+      const start = region.start;
+      const end = region.end;
+      if (typeof start === "number" && typeof end === "number" && Number.isFinite(start) && Number.isFinite(end)) {
+        return { start, end: Math.max(start + 0.05, end) };
+      }
+    } catch (e) {
+      /* noop */
+    }
+    return null;
+  }
+
+  const spans = objectLifespanClips(region, videoObject, fps, durationSec, {
+    extendLastToVideoEnd: false,
+  });
+  if (spans.length) {
+    return {
+      start: Math.min(...spans.map((s) => s.start)),
+      end: Math.max(...spans.map((s) => s.end)),
+    };
+  }
+
+  const fallback = objectSpanSec(region, fps);
+  if (!fallback) return null;
+  return { start: fallback.start, end: Math.max(fallback.start + 0.05, fallback.end) };
+}
+
+/**
+ * relationStore → 파생 clip (시간 = endpoint 합집합). mapper/proto 변경 없음.
+ */
+export function collectRelationLaneClips(annotation, videoObject) {
+  const clips = [];
+  if (!annotation) return clips;
+
+  let relations = [];
+  try {
+    relations = annotation.relationStore?.relations || [];
+  } catch (e) {
+    return clips;
+  }
+  if (!relations.length) return clips;
+
+  const fps = frameRateFromVideo(videoObject);
+  const durationSec = readDurationSec(null, videoObject);
+
+  relations.forEach((rel) => {
+    if (!rel) return;
+    let node1;
+    let node2;
+    try {
+      node1 = rel.node1;
+      node2 = rel.node2;
+    } catch (e) {
+      return;
+    }
+
+    const spanA = regionTimeSpanSec(node1, videoObject, fps, durationSec);
+    const spanB = regionTimeSpanSec(node2, videoObject, fps, durationSec);
+    if (!spanA && !spanB) return;
+
+    let start;
+    let end;
+    if (spanA && spanB) {
+      start = Math.min(spanA.start, spanB.start);
+      end = Math.max(spanA.end, spanB.end);
+    } else {
+      const only = spanA || spanB;
+      start = only.start;
+      end = only.end;
+    }
+    if (!(typeof start === "number" && typeof end === "number" && Number.isFinite(start) && Number.isFinite(end))) {
+      return;
+    }
+    if (!(end > start)) end = start + 0.05;
+
+    let labels = [];
+    try {
+      labels = Array.isArray(rel.labels) ? rel.labels.filter(Boolean).map(String) : [];
+    } catch (e) {
+      labels = [];
+    }
+    const labelText = labels[0] || "관계";
+    const fromId = node1?.cleanId || node1?.id || "";
+    const toId = node2?.cleanId || node2?.id || "";
+    let direction = "right";
+    try {
+      direction = rel.direction || "right";
+    } catch (e) {
+      direction = "right";
+    }
+    const arrow = direction === "bi" ? "↔" : direction === "left" ? "←" : "→";
+
+    clips.push({
+      id: `relation:${rel.id}`,
+      lane: "relation",
+      start,
+      end,
+      label: `${labelText} · ${shortSegmentId(fromId)} ${arrow} ${shortSegmentId(toId)}`,
+      region: null,
+      relation: rel,
+      meta: {
+        relationId: rel.id,
+        fromId,
+        toId,
+        direction,
+        labels,
+        laneLabel: "관계",
+        node1Id: node1?.id ?? null,
+        node2Id: node2?.id ?? null,
+        color: "#CC6FBE",
+      },
+    });
+  });
+
+  clips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+  return clips;
+}
+
 export function collectVideoObjectLaneClips(
   annotation,
   videoObject,
@@ -715,9 +841,10 @@ export function collectAllLaneClips(item) {
     audio_manual: subtitleLanes.audio_manual || [],
     attachment: collectAttachmentLaneClips(item.attachmentsControl),
     saved_attachment: collectSavedAttachmentLaneClips(item.savedAttachmentsControl),
+    relation: collectRelationLaneClips(annotation, item.videoObject),
   };
 
-  const enabled = (item.showlanes || "stt,audio_manual,object,pose_object,saved_attachment")
+  const enabled = (item.showlanes || "stt,audio_manual,object,pose_object,saved_attachment,relation")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);

@@ -346,6 +346,13 @@
   color: var(--red_7);
 }
 
+.laneRelation .clip {
+  background: color-mix(in srgb, #cc6fbe 18%, var(--sand_0, #fff));
+  color: #9a3d8a;
+  border-style: solid;
+  border-color: #cc6fbe;
+}
+
 .laneTrackInteractive {
   cursor: crosshair;
 }

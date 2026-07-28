@@ -33,7 +33,7 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 ## Lane 구성 (기본)
 
-`showLanes="stt,object,pose_object,saved_attachment"`
+`showLanes="stt,object,pose_object,saved_attachment,relation"`
 
 | lane 키 | UI 라벨 | 데이터 출처 | 비고 |
 |---------|---------|-------------|------|
@@ -42,6 +42,7 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 | `object` | 수동 객체 | `videoObjectsFrom` (`box`) + **confidence unset** | 수동 VideoRectangle |
 | `pose_object` | 자동(POSE) | `poseObjectsFrom` (`pose_box`) + **confidence set** | 추론 VideoRectangle |
 | `saved_attachment` | 저장 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
+| `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**; mapper/proto 비침범 |
 
 레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.
 unset(검수 clear 포함) → `audio_manual` / `object`, set(0 포함) → `stt` / `pose_object`.
@@ -85,7 +86,7 @@ clip 자막은 TextArea / `_faivvCaptionText` / `window.__faivvRegionCaptions` �
   videoObjectsFrom="box"
   poseObjectsFrom="pose_box"
   height="280" embedAttachments="true"
-  showLanes="stt,object,pose_object,saved_attachment" />
+  showLanes="stt,object,pose_object,saved_attachment,relation" />
 ```
 
 name/속성 문자열은 다음 세 곳과 **동일**해야 한다.

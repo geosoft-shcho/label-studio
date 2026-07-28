@@ -20,6 +20,7 @@ const LANE_LABELS = {
   object: "수동 객체",
   pose_object: "자동(POSE)",
   saved_attachment: "저장 첨부",
+  relation: "관계",
 };
 
 const LANE_ROW_CLASS = {
@@ -28,6 +29,7 @@ const LANE_ROW_CLASS = {
   object: styles.laneObject,
   pose_object: styles.lanePoseObject,
   saved_attachment: styles.laneSavedAttachment,
+  relation: styles.laneRelation,
 };
 
 const PX_PER_SEC_DEFAULT = 80;
@@ -363,7 +365,7 @@ function MultimodalTimelineView({ item, className }) {
 }
 
 function timelineRowsFromClips(laneClips) {
-  const order = ["stt", "audio_manual", "object", "pose_object", "saved_attachment"];
+  const order = ["stt", "audio_manual", "object", "pose_object", "saved_attachment", "relation"];
   const orderIndex = new Map(order.map((kind, index) => [kind, index]));
   return Object.entries(laneClips)
     .filter(([, clips]) => Array.isArray(clips))

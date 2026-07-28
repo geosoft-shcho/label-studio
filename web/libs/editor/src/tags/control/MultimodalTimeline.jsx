@@ -12,6 +12,10 @@ import { readDurationSec, readPlayheadSec } from "../../components/MultimodalTim
 import Registry from "../../core/Registry";
 import { AnnotationMixin } from "../../mixins/AnnotationMixin";
 import { ReadOnlyControlMixin } from "../../mixins/ReadOnlyMixin";
+import {
+  faivvRelationDebug,
+  summarizeRegionForRelation,
+} from "../object/Video/faivvRelationDebug";
 import ControlBase from "./Base";
 
 /**
@@ -51,7 +55,7 @@ const TagAttrs = types.model({
   videoobjectsfrom: types.optional(types.string, "box"),
   poseobjectsfrom: types.optional(types.string, "pose_box"),
   height: types.optional(types.string, "200"),
-  showlanes: types.optional(types.string, "stt,audio_manual,object,pose_object,saved_attachment"),
+  showlanes: types.optional(types.string, "stt,audio_manual,object,pose_object,saved_attachment,relation"),
   embedattachments: types.optional(types.boolean, true),
 });
 
@@ -100,14 +104,26 @@ const Model = types
       return readPlayheadSec(self.audioObject, self.videoObject);
     },
     get laneClips() {
-      // regionStore / results / clipsEpoch 를 읽어 외부 inject 후에도 observer 가 갱신되게 함.
+      // regionStore / results / relations / clipsEpoch 를 읽어 외부 inject 후에도 observer 가 갱신되게 함.
       // deleteRegion 중 MST reaction 이 죽은 AudioRegion 의 results 를 읽지 않도록 try 로 감싼다.
       try {
         const regions = self.annotation?.regionStore?.regions || [];
         const results = self.annotation?.results || [];
+        const relations = self.annotation?.relationStore?.relations || [];
         void self.clipsEpoch;
         void regions.length;
         void results.length;
+        void relations.length;
+        relations.forEach((r) => {
+          try {
+            void r.labels;
+            void r.direction;
+            void r.node1?.id;
+            void r.node2?.id;
+          } catch (e) {
+            /* destroy 중 */
+          }
+        });
         return collectAllLaneClips(self);
       } catch (e) {
         return {};
@@ -198,22 +214,120 @@ const Model = types
       const ann = self.annotation;
       if (!ann) return;
 
+      const linking = !!ann.isLinkingMode;
+      faivvRelationDebug("mmTimeline.selectClip", {
+        path: linking ? "enter_linking" : "enter_select",
+        note: linking
+          ? "Create Relation 후 clip 클릭 — addLinkedRegion 시도"
+          : "평소 clip 클릭 — seek + selectArea",
+        linking,
+        lane: clip.lane ?? null,
+        regionId: clip.region?.id ?? clip.regionId ?? clip.id ?? null,
+        start: typeof clip.start === "number" ? clip.start : null,
+      });
+
       if (typeof clip.start === "number") {
         self.seekTo(clip.start);
       }
 
-      if ((clip.lane === "object" || clip.lane === "pose_object") && clip.region) {
+      // Outliner / canvas onClickRegion과 동일: linking 중 clip 클릭 = relation 완료
+      const completeLinkIfNeeded = (region) => {
+        if (!region || !ann.isLinkingMode) return false;
+        if (typeof region.isReadOnly === "function" && region.isReadOnly()) return false;
+        faivvRelationDebug("mmTimeline.selectClip", {
+          path: "addLinkedRegion",
+          note: "MultimodalTimeline selectClip while linking",
+          lane: clip.lane,
+          region: summarizeRegionForRelation(region),
+        });
+        ann.addLinkedRegion(region);
+        ann.stopLinkingMode();
         ann.regionStore.unselectAll();
-        ann.selectArea(clip.region);
+        return true;
+      };
+
+      // 파생 relation clip — linking 중에는 무시 (endpoint clip만 생성 대상)
+      if (clip.lane === "relation") {
+        if (linking) {
+          faivvRelationDebug("mmTimeline.selectClip", {
+            path: "ignore_relation_while_linking",
+            note: "relation lane은 linking 생성 대상 아님",
+            relationId: clip.meta?.relationId ?? null,
+          });
+          return;
+        }
+        let rel = clip.relation;
+        if (!rel && clip.meta?.relationId) {
+          try {
+            rel = (ann.relationStore?.relations || []).find((r) => r.id === clip.meta.relationId);
+          } catch (e) {
+            rel = null;
+          }
+        }
+        if (!rel) {
+          faivvRelationDebug("mmTimeline.selectClip", {
+            path: "relation_missing",
+            relationId: clip.meta?.relationId ?? null,
+          });
+          return;
+        }
+        try {
+          ann.relationStore?.setHighlight?.(rel);
+        } catch (e) {
+          /* noop */
+        }
+        let node1;
+        let node2;
+        try {
+          node1 = rel.node1;
+          node2 = rel.node2;
+        } catch (e) {
+          node1 = null;
+          node2 = null;
+        }
+        faivvRelationDebug("mmTimeline.selectClip", {
+          path: "select_relation",
+          note: "relation clip → highlight + select node1",
+          relationId: rel.id,
+          node1: summarizeRegionForRelation(node1),
+          node2: summarizeRegionForRelation(node2),
+        });
+        if (node1) {
+          ann.regionStore.unselectAll();
+          ann.selectArea(node1);
+          try {
+            node2?.setHighlight?.(true);
+          } catch (e) {
+            /* noop */
+          }
+        }
+        return;
+      }
+
+      if ((clip.lane === "object" || clip.lane === "pose_object") && clip.region) {
         const video = self.videoObject;
         const startFrame = clip.meta?.frameRange?.[0];
         if (video && typeof startFrame === "number" && typeof video.setFrame === "function") {
           video.setFrame(startFrame);
         }
+        if (completeLinkIfNeeded(clip.region)) return;
+        faivvRelationDebug("mmTimeline.selectClip", {
+          path: "selectArea",
+          note: "object/pose clip → selectArea",
+          region: summarizeRegionForRelation(clip.region),
+        });
+        ann.regionStore.unselectAll();
+        ann.selectArea(clip.region);
         return;
       }
 
       if (clip.region && isAudioRegion(clip.region)) {
+        if (completeLinkIfNeeded(clip.region)) return;
+        faivvRelationDebug("mmTimeline.selectClip", {
+          path: "selectArea",
+          note: "audio clip → selectArea",
+          region: summarizeRegionForRelation(clip.region),
+        });
         ann.regionStore.unselectAll();
         ann.selectArea(clip.region);
         self.attachmentsControl?.ensureBucketForSelection?.();
@@ -224,12 +338,22 @@ const Model = types
         const rid = (clip.regionId || clip.id || "").trim();
         if (!rid) return;
         const regions = ann.regionStore?.regions || [];
-        for (let i = 0; i < regions.length; i++) {
-          const r = regions[i];
-          if (!isAudioRegion(r) || r.id !== rid) continue;
+        const selectOrLink = (r) => {
+          if (completeLinkIfNeeded(r)) return true;
+          faivvRelationDebug("mmTimeline.selectClip", {
+            path: "selectArea",
+            note: "attachment clip → selectArea",
+            region: summarizeRegionForRelation(r),
+          });
           ann.regionStore.unselectAll();
           ann.selectArea(r);
           self.attachmentsControl?.ensureBucketForSelection?.();
+          return true;
+        };
+        for (let i = 0; i < regions.length; i++) {
+          const r = regions[i];
+          if (!isAudioRegion(r) || r.id !== rid) continue;
+          selectOrLink(r);
           return;
         }
         for (let i = 0; i < regions.length; i++) {
@@ -237,12 +361,15 @@ const Model = types
           if (!isAudioRegion(r)) continue;
           if (typeof r.start !== "number" || typeof r.end !== "number") continue;
           if (Math.abs(r.start - clip.start) < 0.05 && Math.abs(r.end - clip.end) < 0.05) {
-            ann.regionStore.unselectAll();
-            ann.selectArea(r);
-            self.attachmentsControl?.ensureBucketForSelection?.();
+            selectOrLink(r);
             return;
           }
         }
+        faivvRelationDebug("mmTimeline.selectClip", {
+          path: "no_region",
+          note: "attachment clip — matching audio region 없음",
+          regionId: rid,
+        });
       }
     },
 
