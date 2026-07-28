@@ -176,7 +176,8 @@ const Model = types
       });
     },
 
-    /** frame 0 / 첫 키프레임 이전에도 bbox·skeleton 표시 (getShape와 동일 정책). */
+    /** 검출됨(enabled≠false)인 closest KF 구간만 bbox·skeleton 표시.
+     * 추론 미검출 프레임의 enabled:false 키프레임부터 다음 true까지 완전 숨김. */
     isInLifespan(targetFrame) {
       const seq = self.sequence || [];
       if (!seq.length) return false;
@@ -187,9 +188,7 @@ const Model = types
       }
       const closestKeypoint = self.closestKeypoint(target);
       if (closestKeypoint) {
-        const { enabled, frame } = closestKeypoint;
-        if (Number(frame) === target && !enabled) return true;
-        return enabled !== false;
+        return closestKeypoint.enabled !== false;
       }
       return false;
     },
