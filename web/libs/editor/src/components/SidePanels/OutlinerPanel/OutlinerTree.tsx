@@ -25,6 +25,10 @@ import { flatten, isDefined, isMacOS } from "../../../utils/utilities";
 import { NodeIcon } from "../../Node/Node";
 import { LockButton } from "../Components/LockButton";
 import { RegionControlButton } from "../Components/RegionControlButton";
+import {
+  faivvRelationDebug,
+  summarizeRegionForRelation,
+} from "../../../tags/object/Video/faivvRelationDebug";
 import "./TreeView.scss";
 import ResizeObserver from "../../../utils/resize-observer";
 import type { EventDataNode, Key } from "rc-tree/es/interface";
@@ -99,13 +103,13 @@ const OutlinerInnerTreeComponent: FC<OutlinerInnerTreeProps> = observer(({ regio
       resizeObserver = null;
     };
   }, []);
-  const setRef = useCallback((ref) => {
+  const setRef = useCallback((ref: HTMLElement | null) => {
     if (ref) {
       resizeObserver?.observe(ref);
     } else if (blockRef.current) {
       resizeObserver?.unobserve(blockRef.current);
     }
-    blockRef.current = ref;
+    blockRef.current = ref ?? undefined;
     setHeight(ref?.clientHeight || 1);
   }, []);
   const eventHandlers = useEventHandlers();
@@ -152,7 +156,7 @@ const OutlinerInnerTreeComponent: FC<OutlinerInnerTreeProps> = observer(({ regio
       {
         node,
       }: {
-        node: EventDataNode;
+        node: EventDataNode<any>;
       },
     ): void => {
       const region = regionsTree.find((region: any) => region.key === node.key);
@@ -201,7 +205,7 @@ const OutlinerInnerTreeComponent: FC<OutlinerInnerTreeProps> = observer(({ regio
 });
 
 const useDataTree = ({ regions, rootClass, footer }: any) => {
-  const processor = useCallback((item: any, idx, _false, _null, _onClick) => {
+  const processor = useCallback((item: any, idx: number, _false: boolean, _null: null, _onClick: unknown) => {
     const { id, type, hidden, isDrawing } = item ?? {};
     const style = item?.background ?? item?.getOneColor?.();
     const color = chroma(style ?? "#666").alpha(1);
@@ -250,7 +254,7 @@ const useDataTree = ({ regions, rootClass, footer }: any) => {
 };
 
 const useEventHandlers = () => {
-  const onSelect = useCallback((_, evt) => {
+  const onSelect = useCallback((_: Key[], evt: any) => {
     const multi = evt.nativeEvent.ctrlKey || (isMacOS() && evt.nativeEvent.metaKey);
     const { node } = evt;
 
@@ -259,18 +263,49 @@ const useEventHandlers = () => {
     if (!self?.annotation) return;
 
     const annotation = self.annotation;
+    const ffPerFieldComments = isFF(FF_PER_FIELD_COMMENTS);
+    const linking = !!annotation.isLinkingMode;
+    const selectedCount = annotation.selectedRegions?.length ?? annotation.selectedAreas?.length ?? null;
 
     if (multi) {
+      faivvRelationDebug("outliner.select", {
+        path: "multi_toggle",
+        note: "Ctrl/Cmd+click는 selection toggle만 — relation 생성 안 함. Create Relation 후 단일 클릭 필요",
+        multi: true,
+        linking,
+        selectedCount,
+        region: summarizeRegionForRelation(self),
+      });
       annotation.toggleRegionSelection(self);
       return;
     }
 
-    if (isFF(FF_PER_FIELD_COMMENTS) && !self.isReadOnly() && annotation.isLinkingMode) {
+    // canvas onClickRegion과 동일: linking 중 Outliner 단일 클릭 = relation 완료
+    // (upstream은 FF_PER_FIELD_COMMENTS에 묶여 있어 faivv에서 relation이 막혔음)
+    if (!self.isReadOnly() && linking) {
+      faivvRelationDebug("outliner.select", {
+        path: "addLinkedRegion",
+        note: "Outliner linking 완료",
+        multi: false,
+        linking: true,
+        ffPerFieldComments,
+        region: summarizeRegionForRelation(self),
+        selectedCount,
+      });
       annotation.addLinkedRegion(self);
       annotation.stopLinkingMode();
       annotation.regionStore.unselectAll();
       return;
     }
+
+    faivvRelationDebug("outliner.select", {
+      path: "select_or_unselect",
+      multi: false,
+      linking: false,
+      wasSelected: !!self.selected,
+      region: summarizeRegionForRelation(self),
+      selectedCount,
+    });
 
     const wasNotSelected = !self.selected;
 
@@ -321,7 +356,7 @@ const useEventHandlers = () => {
     return 1 + Math.max(...childrenHeight);
   }, []);
 
-  const onDrop = useCallback(({ node, dragNode, dropPosition, dropToGap }) => {
+  const onDrop = useCallback(({ node, dragNode, dropPosition, dropToGap }: any) => {
     if (node.classification) return false;
     const dropKey = node.props.eventKey;
     const dragKey = dragNode.props.eventKey;
@@ -410,7 +445,7 @@ const RootTitle: FC<any> = observer(
     }, [controls.length]);
 
     const toggleCollapsed = useCallback(
-      (e) => {
+      (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         setCollapsed(!collapsed);
@@ -582,7 +617,7 @@ const RegionItemDesc: FC<RegionItemOCSProps> = observer(({ item, collapsed, setC
   const controls: any[] = item.perRegionDescControls || [];
 
   const onClick = useCallback(
-    (e) => {
+    (e: MouseEvent) => {
       e.stopPropagation();
 
       if (!selected) {

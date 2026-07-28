@@ -9,6 +9,10 @@ import { Block, Elem } from "../../../utils/bem";
 import { NodeIcon } from "../../Node/Node";
 import { LockButton } from "../Components/LockButton";
 import { RegionLabels } from "./RegionLabels";
+import {
+  faivvRelationDebug,
+  summarizeRegionForRelation,
+} from "../../../tags/object/Video/faivvRelationDebug";
 
 interface RegionItemProps {
   region: any;
@@ -99,6 +103,16 @@ const RegionAction: FC<any> = observer(({ region, annotation, editMode, onEditMo
       onClick={(_e: any, hotkey?: any) => {
         // If this is triggered by a hotkey, defer to the global bound handler for relations to avoid contention.
         if (hotkey) return;
+        const linking = !!annotation.isLinkingMode;
+        faivvRelationDebug("action.click", {
+          wasLinking: linking,
+          next: linking ? "stop" : "start",
+          mode: CREATE_RELATION_MODE,
+          region: summarizeRegionForRelation(region),
+          hint: linking
+            ? "linking 취소"
+            : "이제 Outliner에서 두 번째 region을 단일 클릭 (Ctrl 없이). FF_PER_FIELD_COMMENTS 필요 여부 로그 확인",
+        });
         if (annotation.isLinkingMode) {
           annotation.stopLinkingMode();
         } else {
