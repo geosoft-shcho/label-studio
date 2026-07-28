@@ -10,8 +10,10 @@ import { ToolManagerMixin } from "../../mixins/ToolManagerMixin";
 import { customTypes } from "../../core/CustomTypes";
 
 /**
- * VideoPose — bbox + skeleton on video (FAIVV).
- * VideoVector(점/선/skeleton) 드로잉 툴을 포함하며, bbox는 VideoRegions 드래그로 생성.
+ * VideoPose — bbox + skeleton on video (**FAIVV pose-only**).
+ * Not a drop-in for official VideoVector / VideoRectangle.
+ * Keypoints tool mirrors VideoVector; bbox drag is handled in VideoRegions.
+ * Docs: faivv-flow `docs/구현설명-VideoPoseLabels.md`
  *
  * @name VideoPose
  */

@@ -10,7 +10,11 @@ import { VideoPoseModel } from "./VideoPose";
 import ControlBase from "./Base";
 
 /**
- * VideoPoseLabels — labeled bbox + skeleton on video (FAIVV).
+ * VideoPoseLabels — labeled bbox + skeleton on video (**FAIVV pose-only control**).
+ *
+ * Not an official Label Studio replacement for VideoVectorLabels / VideoRectangle.
+ * Product docs: faivv-flow `docs/구현설명-VideoPoseLabels.md`
+ * Fork inventory: `docs/FAIVV_CUSTOMIZATIONS.md`
  *
  * @example
  * <View>

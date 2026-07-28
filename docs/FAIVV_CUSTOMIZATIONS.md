@@ -33,6 +33,11 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/tags/object/Paragraphs/model.js` | newUI phrase `--background-color` → `var(--sand_*)` |
 | `web/libs/editor/src/components/Timeline/Controls.scss` | `main-controls` 버튼·SVG `currentColor` 테마 대응 |
 | `web/libs/editor/src/assets/icons/timeline/*.svg` | `fill="black"` → `currentColor` (다크 모드 아이콘) |
+| `web/libs/editor/src/tags/control/VideoPose.js` | **FAIVV** pose control (bbox+skeleton). **Not** a drop-in for official VideoVector |
+| `web/libs/editor/src/tags/control/VideoPoseLabels.jsx` | Labeled pose UI — see faivv-flow `docs/구현설명-VideoPoseLabels.md` |
+| `web/libs/editor/src/tools/VideoPose.js` | VideoPoseTool (click = keypoints; bbox via VideoRegions gesture) |
+| `web/libs/editor/src/regions/VideoPoseRegion.jsx` | `videoposeregion` — sequence has bbox props **and** vertices |
+| `web/libs/editor/src/tags/object/Video/VideoRegions.jsx` | Empty-stage drag=bbox / click=keypoints; shape hit = resume |
 
 ## Theme (Flutter ↔ LSF)
 
@@ -51,6 +56,7 @@ faivv-flow `ThemeProvider` → `FaivvLabelStudio.setTheme('dark'|'light')` →
 | 문서 | 용도 |
 |------|------|
 | [AGENTS_FAIVV_NEW_TAG.md](./AGENTS_FAIVV_NEW_TAG.md) | 새 태그 추가 시 **object / control / view** 선택·구현 순서 |
+| faivv-flow `docs/구현설명-VideoPoseLabels.md` | **VideoPoseLabels** = pose 전용 (공식 VideoVector/VideoRectangle 대체 아님) |
 | `.cursor/rules/faivv-lsf-new-tag.mdc` | 태그·관련 컴포넌트 편집 시 agent 규칙 |
 | `.cursor/rules/faivv-multimodal-attachments.mdc` | MultimodalTimeline·첨부 폴더 편집 시 agent 규칙 |
 
