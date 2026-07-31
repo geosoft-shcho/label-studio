@@ -35,13 +35,13 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 `showLanes="stt,object,pose_object,saved_attachment,relation"`
 
-| lane 키 | UI 라벨 | 데이터 출처 | 비고 |
-|---------|---------|-------------|------|
-| `stt` | STT 자동 | `audioSegmentsFrom` + transcript + **confidence set** | AI 전사 |
-| `audio_manual` | 수동 자막 | 동일 캐리어 + **confidence unset** | 사람 편집·검수 clear |
-| `object` | 수동 객체 | `videoObjectsFrom` (`box`) + **confidence unset** | 수동 VideoRectangle |
-| `pose_object` | 자동(POSE) | `poseObjectsFrom` (`pose_box`) + **confidence set** | 추론 VideoRectangle |
-| `saved_attachment` | 저장 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
+| lane 키 | UI 라벨 (`source · kind`) | 데이터 출처 | 비고 |
+|---------|---------------------------|-------------|------|
+| `stt` | 자동 · 자막 (+AI 뱃지) | `audioSegmentsFrom` + transcript + **confidence set** | AI 전사 |
+| `audio_manual` | 수동 · 자막 | 동일 캐리어 + **confidence unset** | 사람 작성·검수 clear |
+| `object` | 수동 · 객체 / `수동 · {class}` | `videoObjectsFrom` + **confidence unset** | instance 행 확장 |
+| `pose_object` | 자동 · 객체 / `자동 · {class}` (+AI) | `poseObjectsFrom` + **confidence set** | instance 행 확장 |
+| `saved_attachment` | 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
 | `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**. video endpoint는 **keyframe 실구간**만 (VideoPose `isInLifespan` 전체 연장 금지). 표시용 최소 duration `max(1/fps,1s)`·min-width 32px. mapper/proto·store 불변 |
 
 레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.

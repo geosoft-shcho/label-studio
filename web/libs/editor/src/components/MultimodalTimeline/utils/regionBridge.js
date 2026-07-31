@@ -1049,6 +1049,7 @@ export function collectAllLaneClips(item) {
   const laneClips = {};
   enabled.forEach((rawKey) => {
     const lower = rawKey.toLowerCase();
+    // source만 전달 — instance title: `{source} · {class}` (View kind 폴백과 축 일치)
     if (lower === "object") {
       videoObjectLaneEntries(manualObjectClips, "object", "수동").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;

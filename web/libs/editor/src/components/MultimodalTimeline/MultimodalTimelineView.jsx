@@ -13,13 +13,15 @@ import {
 import { subscribeMediaPlayhead } from "./utils/mediaSync";
 import styles from "./MultimodalTimelineView.module.scss";
 
+/** laneLabelsColumn title 폴백.
+ * 축: source(수동/자동=confidence) · kind(자막/객체/첨부/관계=LayerDocument.kind 표시어).
+ * lane key 자체는 바꾸지 않는다. instance 행은 meta.laneLabel 이 우선. */
 const LANE_LABELS = {
-  // lane 키는 호환 유지 — UI 카피는 설계-20 수동/자동
-  stt: "STT 자동",
-  audio_manual: "수동 자막",
-  object: "수동 객체",
-  pose_object: "자동(POSE)",
-  saved_attachment: "저장 첨부",
+  stt: "자동 · 자막",
+  audio_manual: "수동 · 자막",
+  object: "수동 · 객체",
+  pose_object: "자동 · 객체",
+  saved_attachment: "첨부",
   relation: "관계",
 };
 
@@ -297,7 +299,7 @@ function MultimodalTimelineView({ item, className }) {
                 .join(" ")}
               title={row.label}
             >
-              {row.kind === "pose_object" ? (
+              {row.kind === "pose_object" || row.kind === "stt" ? (
                 <span className={styles.laneSourceBadge} aria-hidden="true">
                   AI
                 </span>
