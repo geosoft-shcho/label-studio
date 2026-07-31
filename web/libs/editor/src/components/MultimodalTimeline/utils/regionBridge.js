@@ -9,6 +9,7 @@ import { isAlive } from "mobx-state-tree";
 
 import {
   collectVideoObjectRegions,
+  normalizeRegionSequence,
   objectLifespanClips,
   regionMatchesVideoObjectControls,
   videoRegionColor,
@@ -16,6 +17,7 @@ import {
   videoRegionLabel,
 } from "./objectLifespan";
 import { readDurationSec } from "./mediaSync";
+import { faivvRelationDebug } from "../../../tags/object/Video/faivvRelationDebug";
 
 /** deleteRegion/destroy 중 MST reaction 이 죽은 노드의 results 를 읽지 않도록. */
 function regionIsUsable(region) {
@@ -417,8 +419,45 @@ export function collectSavedAttachmentLaneClips(savedControl) {
 }
 
 /**
- * endpoint region → 초 구간. audio는 start/end, video는 lifespan 합집합.
- * 유효 구간 없으면 null.
+ * Video endpoint → keyframe first..last (enabled) 초 구간.
+ * VideoPose `isInLifespan` 스캔은 단일 KF를 영상 끝까지 연장하므로 relation lane에 쓰지 않는다.
+ */
+function videoKeyframeSpanSec(region, fps) {
+  if (!(fps > 0)) return null;
+  const seq = normalizeRegionSequence(region);
+  if (!Array.isArray(seq) || !seq.length) return null;
+
+  let minF = Infinity;
+  let maxF = -Infinity;
+  let enabledCount = 0;
+  seq.forEach((k) => {
+    if (typeof k?.frame !== "number") return;
+    if (k.enabled === false) return;
+    enabledCount += 1;
+    minF = Math.min(minF, k.frame);
+    maxF = Math.max(maxF, k.frame);
+  });
+  if (!enabledCount) {
+    seq.forEach((k) => {
+      if (typeof k?.frame !== "number") return;
+      minF = Math.min(minF, k.frame);
+      maxF = Math.max(maxF, k.frame);
+    });
+  }
+  if (!Number.isFinite(minF) || !Number.isFinite(maxF)) return null;
+  return {
+    start: minF / fps,
+    end: Math.max(minF / fps + 0.05, (maxF + 1) / fps),
+    path: "keyframes",
+    seqLen: seq.length,
+    spanCount: 1,
+  };
+}
+
+/**
+ * relation endpoint → 초 구간.
+ * audio: start/end. video: **keyframe 실구간 우선** (isInLifespan 전체 스캔 금지).
+ * @returns {{ start: number, end: number, path?: string } | null}
  */
 function regionTimeSpanSec(region, videoObject, fps, durationSec) {
   if (!regionIsUsable(region)) return null;
@@ -428,7 +467,7 @@ function regionTimeSpanSec(region, videoObject, fps, durationSec) {
       const start = region.start;
       const end = region.end;
       if (typeof start === "number" && typeof end === "number" && Number.isFinite(start) && Number.isFinite(end)) {
-        return { start, end: Math.max(start + 0.05, end) };
+        return { start, end: Math.max(start + 0.05, end), path: "audio" };
       }
     } catch (e) {
       /* noop */
@@ -436,6 +475,20 @@ function regionTimeSpanSec(region, videoObject, fps, durationSec) {
     return null;
   }
 
+  // pose/box: keyframe first~last only (relation lane). object/pose_object 레인은 lifespan 유지.
+  const keyframes = videoKeyframeSpanSec(region, fps);
+  if (keyframes) return keyframes;
+
+  const fallback = objectSpanSec(region, fps);
+  if (fallback) {
+    return {
+      start: fallback.start,
+      end: Math.max(fallback.start + 0.05, fallback.end),
+      path: "objectSpanSec",
+    };
+  }
+
+  // sequence 없을 때만 lifespan 폴백 (드묾).
   const spans = objectLifespanClips(region, videoObject, fps, durationSec, {
     extendLastToVideoEnd: false,
   });
@@ -443,46 +496,129 @@ function regionTimeSpanSec(region, videoObject, fps, durationSec) {
     return {
       start: Math.min(...spans.map((s) => s.start)),
       end: Math.max(...spans.map((s) => s.end)),
+      path: "lifespan_fallback",
+      spanCount: spans.length,
     };
   }
+  return null;
+}
 
-  const fallback = objectSpanSec(region, fps);
-  if (!fallback) return null;
-  return { start: fallback.start, end: Math.max(fallback.start + 0.05, fallback.end) };
+function summarizeEndpointForRelationLane(region, span) {
+  if (!region) {
+    return { present: false, reason: "missing_node" };
+  }
+  let alive = false;
+  try {
+    alive = regionIsUsable(region);
+  } catch (e) {
+    alive = false;
+  }
+  let type = null;
+  let id = null;
+  let cleanId = null;
+  let seqLen = 0;
+  let audioStart = null;
+  let audioEnd = null;
+  try {
+    type = region.type ?? null;
+    id = region.id ?? null;
+    cleanId = region.cleanId ?? null;
+    const seq = normalizeRegionSequence(region);
+    seqLen = Array.isArray(seq) ? seq.length : 0;
+    if (typeof region.start === "number") audioStart = region.start;
+    if (typeof region.end === "number") audioEnd = region.end;
+  } catch (e) {
+    /* destroy 중 */
+  }
+  return {
+    present: true,
+    alive,
+    type,
+    id,
+    cleanId,
+    seqLen,
+    audioStart,
+    audioEnd,
+    span: span
+      ? { start: span.start, end: span.end, path: span.path || null, spanCount: span.spanCount ?? null }
+      : null,
+  };
 }
 
 /**
  * relationStore → 파생 clip (시간 = endpoint 합집합). mapper/proto 변경 없음.
+ *
+ * LSF 공식 Relations/Video linking 과 별개: lane UI 만 relationStore 파생.
+ * 스킵 사유는 `relation.mmLane.collect` 로그로 확인.
+ *
+ * 표시용 최소 duration: pose–pose 등 초단 합집합이 긴 타임라인에서 안 보이는 문제 방지.
+ * relationStore / serialize 값은 변경하지 않는다.
  */
+/** UI-only — serialize/store 불변. */
+const MIN_RELATION_CLIP_SEC = 1;
+
 export function collectRelationLaneClips(annotation, videoObject) {
   const clips = [];
-  if (!annotation) return clips;
+  if (!annotation) {
+    faivvRelationDebug("mmLane.collect", { ok: false, reason: "no_annotation", clipCount: 0 });
+    return clips;
+  }
 
   let relations = [];
   try {
     relations = annotation.relationStore?.relations || [];
   } catch (e) {
+    faivvRelationDebug("mmLane.collect", { ok: false, reason: "relationStore_access", clipCount: 0 });
     return clips;
   }
-  if (!relations.length) return clips;
+  if (!relations.length) {
+    faivvRelationDebug("mmLane.collect", {
+      ok: true,
+      reason: "empty_relationStore",
+      relationCount: 0,
+      clipCount: 0,
+      hasVideoObject: !!videoObject,
+    });
+    return clips;
+  }
 
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
+  const minClipSec = Math.max(1 / Math.max(fps, 1), MIN_RELATION_CLIP_SEC);
+  const skipped = [];
+  const kept = [];
 
   relations.forEach((rel) => {
-    if (!rel) return;
+    if (!rel) {
+      skipped.push({ reason: "null_relation" });
+      return;
+    }
     let node1;
     let node2;
+    let relId = null;
     try {
+      relId = rel.id ?? null;
       node1 = rel.node1;
       node2 = rel.node2;
     } catch (e) {
+      skipped.push({ reason: "node_access", relationId: relId, error: String(e) });
       return;
     }
 
     const spanA = regionTimeSpanSec(node1, videoObject, fps, durationSec);
     const spanB = regionTimeSpanSec(node2, videoObject, fps, durationSec);
-    if (!spanA && !spanB) return;
+    if (!spanA && !spanB) {
+      skipped.push({
+        reason: "both_spans_null",
+        relationId: relId,
+        node1: summarizeEndpointForRelationLane(node1, null),
+        node2: summarizeEndpointForRelationLane(node2, null),
+        fps,
+        durationSec,
+        hasVideoObject: !!videoObject,
+      });
+      return;
+    }
 
     let start;
     let end;
@@ -495,9 +631,36 @@ export function collectRelationLaneClips(annotation, videoObject) {
       end = only.end;
     }
     if (!(typeof start === "number" && typeof end === "number" && Number.isFinite(start) && Number.isFinite(end))) {
+      skipped.push({
+        reason: "non_finite_span",
+        relationId: relId,
+        start,
+        end,
+        node1: summarizeEndpointForRelationLane(node1, spanA),
+        node2: summarizeEndpointForRelationLane(node2, spanB),
+      });
       return;
     }
     if (!(end > start)) end = start + 0.05;
+
+    const rawStart = start;
+    const rawEnd = end;
+    let displayPadded = false;
+    // video.length===1 / duration≈1frame 이면 아직 미디어 미준비 — duration clamp 금지.
+    const videoLength = Number(videoObject?.length);
+    const mediaReady =
+      typeof durationSec === "number" &&
+      Number.isFinite(durationSec) &&
+      durationSec >= minClipSec &&
+      (!Number.isFinite(videoLength) || videoLength > 1);
+    if (end - start < minClipSec) {
+      end = start + minClipSec;
+      if (mediaReady && end > durationSec) {
+        end = durationSec;
+        start = Math.max(0, end - minClipSec);
+      }
+      displayPadded = true;
+    }
 
     let labels = [];
     try {
@@ -516,7 +679,7 @@ export function collectRelationLaneClips(annotation, videoObject) {
     }
     const arrow = direction === "bi" ? "↔" : direction === "left" ? "←" : "→";
 
-    clips.push({
+    const clip = {
       id: `relation:${rel.id}`,
       lane: "relation",
       start,
@@ -534,11 +697,45 @@ export function collectRelationLaneClips(annotation, videoObject) {
         node1Id: node1?.id ?? null,
         node2Id: node2?.id ?? null,
         color: "#CC6FBE",
+        rawStart,
+        rawEnd,
+        displayPadded,
+        displayStart: start,
+        displayEnd: end,
       },
+    };
+    clips.push(clip);
+    kept.push({
+      relationId: relId,
+      rawStart,
+      rawEnd,
+      displayStart: start,
+      displayEnd: end,
+      displayPadded,
+      minClipSec,
+      labels,
+      node1: summarizeEndpointForRelationLane(node1, spanA),
+      node2: summarizeEndpointForRelationLane(node2, spanB),
     });
   });
 
   clips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+
+  faivvRelationDebug("mmLane.collect", {
+    ok: skipped.length === 0,
+    relationCount: relations.length,
+    clipCount: clips.length,
+    skippedCount: skipped.length,
+    paddedCount: kept.filter((k) => k.displayPadded).length,
+    minClipSec,
+    fps,
+    durationSec,
+    hasVideoObject: !!videoObject,
+    videoLength: videoObject?.length ?? null,
+    kept: kept.slice(0, 8),
+    skipped: skipped.slice(0, 8),
+  });
+
   return clips;
 }
 

@@ -50,6 +50,7 @@ const obtainWatcher = (node) => {
     case "timeseriesregion":
       return createPropertyWatcher(["start", "end", { parent: ["zoomedRange"] }]);
     case "videorectangleregion":
+    case "videoposeregion":
       return createPropertyWatcher(["hidden", "sequence", "bboxTriggers", { parent: ["frame"] }]);
     default:
       return null;

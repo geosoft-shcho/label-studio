@@ -6,6 +6,7 @@ import Registry from "../core/Registry";
 import { AreaMixin } from "../mixins/AreaMixin";
 import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
+import { mediaBboxToCanvas } from "../tags/object/Video/mediaToCanvas";
 import { faivvVideoManualDebug, summarizePoseShape } from "../tags/object/Video/faivvVideoManualDebug";
 
 const BBOX_PROPS = ["x", "y", "width", "height", "rotation"];
@@ -120,6 +121,45 @@ const Model = types
 
     getVisibility() {
       return true;
+    },
+
+    get bboxTriggers() {
+      const frame = self.parent?.frame || 1;
+      const video = self.parent?.ref?.current;
+
+      return [
+        frame,
+        self.sequence,
+        video?.zoom,
+        video?.pan?.x,
+        video?.pan?.y,
+        video?.width,
+        video?.height,
+      ];
+    },
+
+    get bboxCoords() {
+      const frame = self.parent?.frame || 1;
+      const shape = self.getShape(frame);
+      if (!shape || shape.x == null || shape.y == null) return null;
+      const width = Number(shape.width) || 0;
+      const height = Number(shape.height) || 0;
+      return {
+        left: shape.x,
+        top: shape.y,
+        right: shape.x + width,
+        bottom: shape.y + height,
+      };
+    },
+
+    get bboxCoordsCanvas() {
+      const frame = self.parent?.frame || 1;
+      if (!self.isInLifespan(frame)) return null;
+      const bbox = self.bboxCoords;
+      if (!bbox) return null;
+      const video = self.parent?.ref?.current;
+
+      return mediaBboxToCanvas(video, bbox);
     },
 
     get control() {

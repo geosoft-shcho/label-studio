@@ -347,10 +347,13 @@
 }
 
 .laneRelation .clip {
-  background: color-mix(in srgb, #cc6fbe 18%, var(--sand_0, #fff));
+  background: color-mix(in srgb, #cc6fbe 28%, var(--sand_0, #fff));
   color: #9a3d8a;
   border-style: solid;
+  border-width: 2px;
   border-color: #cc6fbe;
+  font-weight: 600;
+  z-index: 2;
 }
 
 .laneTrackInteractive {

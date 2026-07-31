@@ -42,7 +42,7 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 | `object` | 수동 객체 | `videoObjectsFrom` (`box`) + **confidence unset** | 수동 VideoRectangle |
 | `pose_object` | 자동(POSE) | `poseObjectsFrom` (`pose_box`) + **confidence set** | 추론 VideoRectangle |
 | `saved_attachment` | 저장 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
-| `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**; mapper/proto 비침범 |
+| `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**. video endpoint는 **keyframe 실구간**만 (VideoPose `isInLifespan` 전체 연장 금지). 표시용 최소 duration `max(1/fps,1s)`·min-width 32px. mapper/proto·store 불변 |
 
 레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.
 unset(검수 clear 포함) → `audio_manual` / `object`, set(0 포함) → `stt` / `pose_object`.

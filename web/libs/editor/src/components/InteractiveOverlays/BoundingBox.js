@@ -146,7 +146,8 @@ const _detect = (region) => {
           })
         : DEFAULT_BBOX;
     }
-    case "videorectangleregion": {
+    case "videorectangleregion":
+    case "videoposeregion": {
       const bbox = region.bboxCoordsCanvas;
       if (!bbox) return { ...DEFAULT_BBOX };
       const video = region.parent;

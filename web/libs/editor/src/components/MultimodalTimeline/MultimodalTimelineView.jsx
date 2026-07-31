@@ -34,6 +34,9 @@ const LANE_ROW_CLASS = {
 
 const PX_PER_SEC_DEFAULT = 80;
 const MIN_TRACK_WIDTH = 640;
+/** relation lane: pose–pose 초단 clip도 클릭 가능하도록 최소 픽셀 폭. */
+const MIN_CLIP_WIDTH_PX = 6;
+const MIN_RELATION_CLIP_WIDTH_PX = 32;
 
 const HINT_MESSAGES = {
   no_label: "오디오 구간 라벨(audio_segments)을 먼저 선택하세요.",
@@ -410,10 +413,12 @@ function LaneRow({
   const isAudioDrawLane = laneKind === "audio_manual";
   const isAudioClipLane = laneKind === "stt" || laneKind === "audio_manual";
   const isKeypointsLane = laneKind === "object" || laneKind === "pose_object";
+  const isRelationLane = laneKind === "relation";
 
   const renderClip = (clip, options = {}) => {
     const { draft = false } = options;
-    const width = Math.max((clip.end - clip.start) * pxPerSec, 6);
+    const minPx = isRelationLane ? MIN_RELATION_CLIP_WIDTH_PX : MIN_CLIP_WIDTH_PX;
+    const width = Math.max((clip.end - clip.start) * pxPerSec, minPx);
     const left = clip.start * pxPerSec;
     const selected = !!(selectedId && (clip.regionId === selectedId || clip.id === selectedId));
     const clipStyle = { left, width };
@@ -426,6 +431,7 @@ function LaneRow({
           selected ? styles.clipSelected : "",
           draft ? styles.clipDraft : "",
           isAudioClipLane && !readOnly ? styles.clipInteractive : "",
+          isRelationLane ? styles.clipInteractive : "",
         ]
           .filter(Boolean)
           .join(" ")}
