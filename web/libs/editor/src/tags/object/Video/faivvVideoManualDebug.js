@@ -78,3 +78,74 @@ export function summarizePoseShape(shape) {
     closed: shape.closed ?? false,
   };
 }
+
+/**
+ * LayerSegment.id 해석 — region.segmentId / result.value.segmentId / cleanId(`seg_*`).
+ * video bbox 편집 디버그용.
+ */
+export function resolveVideoSegmentId(reg) {
+  if (!reg) return "";
+  try {
+    if (typeof reg.videoSegmentId === "string" && reg.videoSegmentId.trim()) {
+      return reg.videoSegmentId.trim();
+    }
+  } catch {
+    /* noop */
+  }
+  try {
+    const fromRegion = String(reg.segmentId || "").trim();
+    if (fromRegion) return fromRegion;
+  } catch {
+    /* noop */
+  }
+  try {
+    const results = reg.results || [];
+    for (let i = 0; i < results.length; i++) {
+      const sid = String(results[i]?.value?.segmentId || "").trim();
+      if (sid) return sid;
+    }
+  } catch {
+    /* noop */
+  }
+  try {
+    const clean = String(reg.cleanId || "").trim();
+    if (clean.startsWith("seg_")) return clean;
+    const full = String(reg.id || "").trim();
+    const hash = full.lastIndexOf("#");
+    const base = hash > 0 ? full.slice(0, hash) : full;
+    if (base.startsWith("seg_")) return base;
+  } catch {
+    /* noop */
+  }
+  return "";
+}
+
+/** video bbox 편집 대상 region 요약 (segment 특정용). */
+export function summarizeRegionForBboxEdit(reg) {
+  if (!reg) return null;
+  const segmentId = resolveVideoSegmentId(reg);
+  let label = null;
+  try {
+    if (Array.isArray(reg.labels) && reg.labels.length) label = String(reg.labels[0]);
+    else if (reg.labeling?.mainValue?.length) label = String(reg.labeling.mainValue[0]);
+  } catch {
+    /* noop */
+  }
+  let cleanId = null;
+  let regionId = null;
+  let type = null;
+  try {
+    cleanId = reg.cleanId ?? null;
+    regionId = reg.id ?? null;
+    type = reg.type ?? null;
+  } catch {
+    /* noop */
+  }
+  return {
+    segmentId: segmentId || null,
+    cleanId,
+    regionId,
+    type,
+    label,
+  };
+}

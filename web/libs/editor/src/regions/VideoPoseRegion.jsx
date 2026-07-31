@@ -7,7 +7,7 @@ import { AreaMixin } from "../mixins/AreaMixin";
 import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
 import { mediaBboxToCanvas } from "../tags/object/Video/mediaToCanvas";
-import { faivvVideoManualDebug, summarizePoseShape } from "../tags/object/Video/faivvVideoManualDebug";
+import { faivvVideoManualDebug, summarizePoseShape, summarizeRegionForBboxEdit } from "../tags/object/Video/faivvVideoManualDebug";
 
 const BBOX_PROPS = ["x", "y", "width", "height", "rotation"];
 
@@ -205,6 +205,24 @@ const Model = types
       if (self.atMaxLength) return true;
       return false;
     },
+
+    /** LayerSegment.id — region.segmentId / result.value.segmentId / cleanId(`seg_*`). */
+    get videoSegmentId() {
+      const fromRegion = String(self.segmentId || "").trim();
+      if (fromRegion) return fromRegion;
+      try {
+        for (const r of self.results || []) {
+          const sid = String(r?.value?.segmentId || "").trim();
+          if (sid) return sid;
+        }
+      } catch (e) {
+        /* noop */
+      }
+      const clean = String(self.cleanId || self.id || "").trim();
+      const hash = clean.lastIndexOf("#");
+      const base = hash > 0 ? clean.slice(0, hash) : clean;
+      return base.startsWith("seg_") ? base : "";
+    },
   }))
   .actions((self) => ({
     setVectorRef(ref) {
@@ -261,10 +279,13 @@ const Model = types
       }
 
       const verts = data?.vertices;
-      if (Array.isArray(verts) || data?.width != null) {
+      if (Array.isArray(verts) || data?.width != null || data?.x != null) {
+        const target = summarizeRegionForBboxEdit(self);
         faivvVideoManualDebug("region.updateShape", {
-          regionId: self.id,
           frame,
+          segmentId: target?.segmentId ?? null,
+          target,
+          regionId: self.id,
           shape: summarizePoseShape({
             ...data,
             vertices: verts ?? self.getShape(frame)?.vertices,

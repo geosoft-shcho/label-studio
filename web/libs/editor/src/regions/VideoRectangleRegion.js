@@ -8,6 +8,11 @@ import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
 import { keypointsAtFrame as resolveKeypointsAtFrame } from "./videoKeypoints";
 import { mediaBboxToCanvas, mediaPercentToCanvas } from "../tags/object/Video/mediaToCanvas";
+import {
+  faivvVideoManualDebug,
+  summarizePoseShape,
+  summarizeRegionForBboxEdit,
+} from "../tags/object/Video/faivvVideoManualDebug";
 
 const Model = types
   .model("VideoRectangleRegionModel", {
@@ -189,6 +194,16 @@ const Model = types
           keypoint,
           ...self.sequence.slice(index + (self.sequence[index].frame === frame)),
         ];
+      }
+
+      if (data?.width != null || data?.x != null) {
+        const target = summarizeRegionForBboxEdit(self);
+        faivvVideoManualDebug("bbox.updateShape", {
+          frame,
+          segmentId: target?.segmentId ?? null,
+          target,
+          shape: summarizePoseShape(data),
+        });
       }
     },
   }));
