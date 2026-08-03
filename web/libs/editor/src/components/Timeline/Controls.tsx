@@ -23,26 +23,15 @@ import { TimelineContext } from "./Context";
 import "./Controls.scss";
 import * as SideControls from "./SideControls";
 import type {
-  TimelineControlsFormatterOptions,
   TimelineControlsProps,
   TimelineControlsStepHandler,
   TimelineCustomControls,
-  TimelineProps,
   TimelineStepFunction,
 } from "./Types";
 import { FF_DEV_2715, isFF } from "../../utils/feature-flags";
 import { AudioControl } from "./Controls/AudioControl";
 import { ConfigControl } from "./Controls/ConfigControl";
 import { TimeDurationControl } from "../TimeDurationControl/TimeDurationControl";
-
-const positionFromTime = ({ time, fps }: TimelineControlsFormatterOptions) => {
-  const roundedFps = Math.round(fps).toString();
-  const fpsMs = 1000 / fps;
-  const currentSecond = (time * 1000) % 1000;
-  const result = Math.round(currentSecond / fpsMs).toString();
-
-  return result.padStart(roundedFps.length, "0");
-};
 
 export const Controls: FC<TimelineControlsProps> = memo(
   ({
@@ -68,7 +57,6 @@ export const Controls: FC<TimelineControlsProps> = memo(
     onStepForward,
     onSpeedChange,
     onToggleCollapsed,
-    formatPosition,
     toggleVisibility,
     layerVisibility,
     mediaType,
@@ -164,8 +152,15 @@ export const Controls: FC<TimelineControlsProps> = memo(
       };
     }, [altControlsMode]);
 
+    /** Audio: `position` is seconds. */
     const onTimeUpdateChange = (value: number) => {
       onPositionChange(value);
+    };
+
+    /** Video/timeline: convert seconds → 1-based frame. */
+    const onTimelineTimeUpdateChange = (value: number) => {
+      const next = Math.round(value * frameRate) + 1;
+      onPositionChange(Math.max(1, Math.min(length, next)));
     };
 
     return (
@@ -313,6 +308,7 @@ export const Controls: FC<TimelineControlsProps> = memo(
                 endTime={duration}
                 minTime={0}
                 maxTime={duration}
+                startTimeReadonly={false}
                 endTimeReadonly={true}
                 currentTime={position}
                 onChangeStartTime={onTimeUpdateChange}
@@ -321,13 +317,16 @@ export const Controls: FC<TimelineControlsProps> = memo(
           ) : (
             <>
               {customControls?.right}
-              <TimeDisplay
+              {/* Video/timeline: current time editable (seek); duration readonly. */}
+              <TimeDurationControl
+                startTime={0}
+                endTime={durationFormatted}
+                minTime={0}
+                maxTime={durationFormatted}
+                startTimeReadonly={false}
+                endTimeReadonly={true}
                 currentTime={currentTime}
-                duration={durationFormatted}
-                length={length}
-                position={position}
-                framerate={frameRate}
-                formatPosition={formatPosition}
+                onChangeStartTime={onTimelineTimeUpdateChange}
               />
             </>
           )}
@@ -342,46 +341,6 @@ export const ControlButton: FC<ButtonProps & { disabled?: boolean }> = ({ childr
     <Button {...props} type="text" style={{ width: 36, height: 36, padding: 0 }}>
       {children}
     </Button>
-  );
-};
-
-interface TimeDisplay {
-  currentTime: number;
-  position: number;
-  duration: number;
-  framerate: number;
-  length: number;
-  formatPosition?: TimelineProps["formatPosition"];
-}
-
-const TimeDisplay: FC<TimeDisplay> = ({ currentTime, position, duration, framerate, length, formatPosition }) => {
-  const pos = position - 1;
-  const formatter = formatPosition ?? positionFromTime;
-  const commonOptions = { position: pos, fps: framerate, length };
-  const currentTimeFormatted = formatter({ time: currentTime, ...commonOptions });
-  const totalTimeFormatted = formatter({ time: duration, ...commonOptions });
-
-  return (
-    <Elem name="time">
-      <Elem name="time-section">
-        <Time time={currentTime} position={currentTimeFormatted} />
-      </Elem>
-      <Elem name="time-section">
-        <Time time={Math.max(duration, 0)} position={totalTimeFormatted} />
-      </Elem>
-    </Elem>
-  );
-};
-
-const Time: FC<{ time: number; position: string }> = ({ time, position }) => {
-  const timeDate = new Date(time * 1000).toISOString();
-  const formatted = time > 3600 ? timeDate.substr(11, 8) : timeDate.substr(14, 5);
-
-  return (
-    <>
-      {formatted}
-      {position ? <span>{position}</span> : null}
-    </>
   );
 };
 
