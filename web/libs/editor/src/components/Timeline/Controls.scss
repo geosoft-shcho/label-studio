@@ -44,9 +44,18 @@
     .button {
       color: inherit;
 
-      svg path,
-      svg rect {
+      // currentColor만 강제. fill="none" / var(--sand_*) 패널은 SVG 속성 유지 (다크모드).
+      svg path:not([fill='none']):not([fill^='var(']),
+      svg rect:not([fill='none']):not([fill^='var(']) {
         fill: currentColor;
+      }
+
+      svg [fill^='var('] {
+        fill: var(--sand_0);
+      }
+
+      svg [fill='none'] {
+        fill: none;
       }
 
       svg [stroke] {
