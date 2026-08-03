@@ -58,10 +58,15 @@
     box-sizing: content-box;
     padding-top: 24px;
     border-top: 1px solid var(--sand_300);
-    background-image: repeating-linear-gradient(90deg, var(--sand_0),
-        var(--sand_0) var(--frame-width),
-        transparent var(--frame-width),
-        transparent calc(var(--frame-width) + 1)),
+    // Must use --frame-size (step), not --frame-width — otherwise fine stripes
+    // punch through the playhead and look like multiple bars.
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--sand_0),
+        var(--sand_0) var(--frame-size),
+        transparent var(--frame-size),
+        transparent calc(var(--frame-size) + 1px)
+      ),
       linear-gradient(0deg, var(--sand_100), transparent 50%);
   }
 
@@ -69,7 +74,8 @@
     top: 0;
     left: 0;
     bottom: 0;
-    z-index: 2;
+    // Above __scroll so frame tick gaps do not stripe the playhead column.
+    z-index: 4;
     position: absolute;
     width: var(--frame-size);
     box-shadow: inset 0 1px var(--sand_900), inset 0 -1px var(--sand_900);
@@ -100,7 +106,7 @@
     top: 0;
     bottom: 0;
     left: 0;
-    z-index: 2;
+    z-index: 4;
     width: var(--frame-size);
     position: absolute;
     pointer-events: none;
