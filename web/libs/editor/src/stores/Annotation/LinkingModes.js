@@ -2,10 +2,6 @@ import { types } from "mobx-state-tree";
 import Constants from "../../core/Constants";
 import { CommentMode } from "./LinkingModes/CommentMode";
 import { RelationMode } from "./LinkingModes/RelationMode";
-import {
-  faivvRelationDebug,
-  summarizeRegionForRelation,
-} from "../../tags/object/Video/faivvRelationDebug";
 
 export const CREATE_RELATION_MODE = RelationMode.key;
 export const LINK_COMMENT_MODE = CommentMode.key;
@@ -47,21 +43,10 @@ export const LinkingModes = types
         }
         self.linkingMode = linkingModeName;
         if (!self.currentLinkingMode) {
-          faivvRelationDebug("link.start.fail", {
-            mode: linkingModeName,
-            reason: "no_currentLinkingMode",
-            region: summarizeRegionForRelation(obj),
-          });
           self.linkingMode = false;
           return;
         }
         self.currentLinkingMode.start(obj);
-        faivvRelationDebug("link.start", {
-          mode: linkingModeName,
-          region: summarizeRegionForRelation(obj),
-          hint: "다음: Outliner에서 상대 region 단일 클릭 (또는 shape onClickRegion)",
-        });
-
         document.body.style.cursor = Constants.CHOOSE_CURSOR;
       },
 
@@ -72,26 +57,12 @@ export const LinkingModes = types
           self.currentLinkingMode.stop();
         }
 
-        faivvRelationDebug("link.stop", {
-          wasMode: self.linkingMode,
-        });
         self.linkingMode = false;
       },
 
       addLinkedRegion(region) {
-        faivvRelationDebug("link.add", {
-          mode: self.linkingMode,
-          hasModeHandler: !!self.currentLinkingMode,
-          region: summarizeRegionForRelation(region),
-          sourceRegion: summarizeRegionForRelation(self.currentLinkingMode?.region),
-        });
         if (self.currentLinkingMode) {
           self.currentLinkingMode.addLinkedRegion?.(region);
-        } else {
-          faivvRelationDebug("link.add.skipped", {
-            reason: "no_currentLinkingMode",
-            region: summarizeRegionForRelation(region),
-          });
         }
       },
 

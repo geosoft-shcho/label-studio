@@ -17,7 +17,6 @@ import {
   videoRegionLabel,
 } from "./objectLifespan";
 import { readDurationSec } from "./mediaSync";
-import { faivvRelationDebug } from "../../../tags/object/Video/faivvRelationDebug";
 
 /** deleteRegion/destroy 중 MST reaction 이 죽은 노드의 results 를 읽지 않도록. */
 function regionIsUsable(region) {
@@ -503,54 +502,10 @@ function regionTimeSpanSec(region, videoObject, fps, durationSec) {
   return null;
 }
 
-function summarizeEndpointForRelationLane(region, span) {
-  if (!region) {
-    return { present: false, reason: "missing_node" };
-  }
-  let alive = false;
-  try {
-    alive = regionIsUsable(region);
-  } catch (e) {
-    alive = false;
-  }
-  let type = null;
-  let id = null;
-  let cleanId = null;
-  let seqLen = 0;
-  let audioStart = null;
-  let audioEnd = null;
-  try {
-    type = region.type ?? null;
-    id = region.id ?? null;
-    cleanId = region.cleanId ?? null;
-    const seq = normalizeRegionSequence(region);
-    seqLen = Array.isArray(seq) ? seq.length : 0;
-    if (typeof region.start === "number") audioStart = region.start;
-    if (typeof region.end === "number") audioEnd = region.end;
-  } catch (e) {
-    /* destroy 중 */
-  }
-  return {
-    present: true,
-    alive,
-    type,
-    id,
-    cleanId,
-    seqLen,
-    audioStart,
-    audioEnd,
-    span: span
-      ? { start: span.start, end: span.end, path: span.path || null, spanCount: span.spanCount ?? null }
-      : null,
-  };
-}
-
 /**
  * relationStore → 파생 clip (시간 = endpoint 합집합). mapper/proto 변경 없음.
  *
  * LSF 공식 Relations/Video linking 과 별개: lane UI 만 relationStore 파생.
- * 스킵 사유는 `relation.mmLane.collect` 로그로 확인.
- *
  * 표시용 최소 duration: pose–pose 등 초단 합집합이 긴 타임라인에서 안 보이는 문제 방지.
  * relationStore / serialize 값은 변경하지 않는다.
  */
@@ -560,7 +515,6 @@ const MIN_RELATION_CLIP_SEC = 1;
 export function collectRelationLaneClips(annotation, videoObject) {
   const clips = [];
   if (!annotation) {
-    faivvRelationDebug("mmLane.collect", { ok: false, reason: "no_annotation", clipCount: 0 });
     return clips;
   }
 
@@ -568,57 +522,30 @@ export function collectRelationLaneClips(annotation, videoObject) {
   try {
     relations = annotation.relationStore?.relations || [];
   } catch (e) {
-    faivvRelationDebug("mmLane.collect", { ok: false, reason: "relationStore_access", clipCount: 0 });
     return clips;
   }
   if (!relations.length) {
-    faivvRelationDebug("mmLane.collect", {
-      ok: true,
-      reason: "empty_relationStore",
-      relationCount: 0,
-      clipCount: 0,
-      hasVideoObject: !!videoObject,
-    });
     return clips;
   }
 
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
   const minClipSec = Math.max(1 / Math.max(fps, 1), MIN_RELATION_CLIP_SEC);
-  const skipped = [];
-  const kept = [];
 
   relations.forEach((rel) => {
-    if (!rel) {
-      skipped.push({ reason: "null_relation" });
-      return;
-    }
+    if (!rel) return;
     let node1;
     let node2;
-    let relId = null;
     try {
-      relId = rel.id ?? null;
       node1 = rel.node1;
       node2 = rel.node2;
     } catch (e) {
-      skipped.push({ reason: "node_access", relationId: relId, error: String(e) });
       return;
     }
 
     const spanA = regionTimeSpanSec(node1, videoObject, fps, durationSec);
     const spanB = regionTimeSpanSec(node2, videoObject, fps, durationSec);
-    if (!spanA && !spanB) {
-      skipped.push({
-        reason: "both_spans_null",
-        relationId: relId,
-        node1: summarizeEndpointForRelationLane(node1, null),
-        node2: summarizeEndpointForRelationLane(node2, null),
-        fps,
-        durationSec,
-        hasVideoObject: !!videoObject,
-      });
-      return;
-    }
+    if (!spanA && !spanB) return;
 
     let start;
     let end;
@@ -631,14 +558,6 @@ export function collectRelationLaneClips(annotation, videoObject) {
       end = only.end;
     }
     if (!(typeof start === "number" && typeof end === "number" && Number.isFinite(start) && Number.isFinite(end))) {
-      skipped.push({
-        reason: "non_finite_span",
-        relationId: relId,
-        start,
-        end,
-        node1: summarizeEndpointForRelationLane(node1, spanA),
-        node2: summarizeEndpointForRelationLane(node2, spanB),
-      });
       return;
     }
     if (!(end > start)) end = start + 0.05;
@@ -679,7 +598,7 @@ export function collectRelationLaneClips(annotation, videoObject) {
     }
     const arrow = direction === "bi" ? "↔" : direction === "left" ? "←" : "→";
 
-    const clip = {
+    clips.push({
       id: `relation:${rel.id}`,
       lane: "relation",
       start,
@@ -703,39 +622,10 @@ export function collectRelationLaneClips(annotation, videoObject) {
         displayStart: start,
         displayEnd: end,
       },
-    };
-    clips.push(clip);
-    kept.push({
-      relationId: relId,
-      rawStart,
-      rawEnd,
-      displayStart: start,
-      displayEnd: end,
-      displayPadded,
-      minClipSec,
-      labels,
-      node1: summarizeEndpointForRelationLane(node1, spanA),
-      node2: summarizeEndpointForRelationLane(node2, spanB),
     });
   });
 
   clips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
-
-  faivvRelationDebug("mmLane.collect", {
-    ok: skipped.length === 0,
-    relationCount: relations.length,
-    clipCount: clips.length,
-    skippedCount: skipped.length,
-    paddedCount: kept.filter((k) => k.displayPadded).length,
-    minClipSec,
-    fps,
-    durationSec,
-    hasVideoObject: !!videoObject,
-    videoLength: videoObject?.length ?? null,
-    kept: kept.slice(0, 8),
-    skipped: skipped.slice(0, 8),
-  });
-
   return clips;
 }
 
@@ -931,39 +821,6 @@ function isAutoTaggedVideoRegion(region) {
   return regionConfidenceValue(region) != null;
 }
 
-let _lastConfidenceLaneDebugKey = "";
-
-function isConfidenceDebugEnabled() {
-  try {
-    if (typeof window === "undefined") return false;
-    if (window.__faivvDebugConfidence === false) return false;
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-function logConfidenceLaneSplit(rows) {
-  if (!isConfidenceDebugEnabled()) return;
-  const summary = {
-    rule: "LayerSegment.confidence → MultimodalTimeline lanes",
-    withConfidence: rows.filter((r) => r.hasConfidence).length,
-    withoutConfidence: rows.filter((r) => !r.hasConfidence).length,
-    autoLane: rows.filter((r) => r.lane === "pose_object").length,
-    manualLane: rows.filter((r) => r.lane === "object").length,
-    rows,
-  };
-  const key = JSON.stringify(summary);
-  if (key === _lastConfidenceLaneDebugKey) return;
-  _lastConfidenceLaneDebugKey = key;
-  try {
-    // eslint-disable-next-line no-console
-    console.info("[faivv-confidence] mmTimeline.lanes", summary);
-  } catch (e) {
-    /* noop */
-  }
-}
-
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
   // box + video_vector(수동) + pose 를 한 풀로 모은 뒤 confidence 로 수동/자동 레인 분기 (설계-20).
@@ -983,24 +840,10 @@ export function collectAllLaneClips(item) {
   );
   const manualObjectClips = [];
   const poseObjectClips = [];
-  const debugRows = [];
   allVideoClips.forEach((clip) => {
     const isAuto = isAutoTaggedVideoRegion(clip.region);
     const conf = regionConfidenceValue(clip.region);
     const hasConf = conf != null;
-    debugRows.push({
-      regionId: String(clip.regionId || clip.region?.id || ""),
-      segmentId: clip.meta?.segmentId || "",
-      control: clip.meta?.controlName || "",
-      hasConfidence: hasConf,
-      confidence: conf,
-      poseBoxFallback:
-        !hasConf &&
-        ["pose_box", "pose"].includes(videoRegionControlName(clip.region)),
-      // 수동 video_vector → object 레인 (confidence unset). pose_object 금지.
-      lane: isAuto ? "pose_object" : "object",
-      laneHint: isAuto ? "pose_object(AI)" : "object(human)",
-    });
     if (isAuto) {
       poseObjectClips.push({
         ...clip,
@@ -1025,7 +868,6 @@ export function collectAllLaneClips(item) {
       });
     }
   });
-  logConfidenceLaneSplit(debugRows);
 
   const subtitleLanes = collectSubtitleLaneClips(
     annotation,

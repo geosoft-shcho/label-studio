@@ -12,10 +12,6 @@ import { readDurationSec, readPlayheadSec } from "../../components/MultimodalTim
 import Registry from "../../core/Registry";
 import { AnnotationMixin } from "../../mixins/AnnotationMixin";
 import { ReadOnlyControlMixin } from "../../mixins/ReadOnlyMixin";
-import {
-  faivvRelationDebug,
-  summarizeRegionForRelation,
-} from "../object/Video/faivvRelationDebug";
 import ControlBase from "./Base";
 
 /**
@@ -215,16 +211,6 @@ const Model = types
       if (!ann) return;
 
       const linking = !!ann.isLinkingMode;
-      faivvRelationDebug("mmTimeline.selectClip", {
-        path: linking ? "enter_linking" : "enter_select",
-        note: linking
-          ? "Create Relation 후 clip 클릭 — addLinkedRegion 시도"
-          : "평소 clip 클릭 — seek + selectArea",
-        linking,
-        lane: clip.lane ?? null,
-        regionId: clip.region?.id ?? clip.regionId ?? clip.id ?? null,
-        start: typeof clip.start === "number" ? clip.start : null,
-      });
 
       if (typeof clip.start === "number") {
         self.seekTo(clip.start);
@@ -234,12 +220,6 @@ const Model = types
       const completeLinkIfNeeded = (region) => {
         if (!region || !ann.isLinkingMode) return false;
         if (typeof region.isReadOnly === "function" && region.isReadOnly()) return false;
-        faivvRelationDebug("mmTimeline.selectClip", {
-          path: "addLinkedRegion",
-          note: "MultimodalTimeline selectClip while linking",
-          lane: clip.lane,
-          region: summarizeRegionForRelation(region),
-        });
         ann.addLinkedRegion(region);
         ann.stopLinkingMode();
         ann.regionStore.unselectAll();
@@ -249,11 +229,6 @@ const Model = types
       // 파생 relation clip — linking 중에는 무시 (endpoint clip만 생성 대상)
       if (clip.lane === "relation") {
         if (linking) {
-          faivvRelationDebug("mmTimeline.selectClip", {
-            path: "ignore_relation_while_linking",
-            note: "relation lane은 linking 생성 대상 아님",
-            relationId: clip.meta?.relationId ?? null,
-          });
           return;
         }
         let rel = clip.relation;
@@ -265,10 +240,6 @@ const Model = types
           }
         }
         if (!rel) {
-          faivvRelationDebug("mmTimeline.selectClip", {
-            path: "relation_missing",
-            relationId: clip.meta?.relationId ?? null,
-          });
           return;
         }
         try {
@@ -285,13 +256,6 @@ const Model = types
           node1 = null;
           node2 = null;
         }
-        faivvRelationDebug("mmTimeline.selectClip", {
-          path: "select_relation",
-          note: "relation clip → highlight + select node1",
-          relationId: rel.id,
-          node1: summarizeRegionForRelation(node1),
-          node2: summarizeRegionForRelation(node2),
-        });
         if (node1) {
           ann.regionStore.unselectAll();
           ann.selectArea(node1);
@@ -311,11 +275,6 @@ const Model = types
           video.setFrame(startFrame);
         }
         if (completeLinkIfNeeded(clip.region)) return;
-        faivvRelationDebug("mmTimeline.selectClip", {
-          path: "selectArea",
-          note: "object/pose clip → selectArea",
-          region: summarizeRegionForRelation(clip.region),
-        });
         ann.regionStore.unselectAll();
         ann.selectArea(clip.region);
         return;
@@ -323,11 +282,6 @@ const Model = types
 
       if (clip.region && isAudioRegion(clip.region)) {
         if (completeLinkIfNeeded(clip.region)) return;
-        faivvRelationDebug("mmTimeline.selectClip", {
-          path: "selectArea",
-          note: "audio clip → selectArea",
-          region: summarizeRegionForRelation(clip.region),
-        });
         ann.regionStore.unselectAll();
         ann.selectArea(clip.region);
         self.attachmentsControl?.ensureBucketForSelection?.();
@@ -340,11 +294,6 @@ const Model = types
         const regions = ann.regionStore?.regions || [];
         const selectOrLink = (r) => {
           if (completeLinkIfNeeded(r)) return true;
-          faivvRelationDebug("mmTimeline.selectClip", {
-            path: "selectArea",
-            note: "attachment clip → selectArea",
-            region: summarizeRegionForRelation(r),
-          });
           ann.regionStore.unselectAll();
           ann.selectArea(r);
           self.attachmentsControl?.ensureBucketForSelection?.();
@@ -365,11 +314,6 @@ const Model = types
             return;
           }
         }
-        faivvRelationDebug("mmTimeline.selectClip", {
-          path: "no_region",
-          note: "attachment clip — matching audio region 없음",
-          regionId: rid,
-        });
       }
     },
 

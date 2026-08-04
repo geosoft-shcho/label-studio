@@ -4,10 +4,6 @@ import { isDefined } from "../utils/utilities";
 import { AnnotationMixin } from "./AnnotationMixin";
 import { ReadOnlyRegionMixin } from "./ReadOnlyMixin";
 import { RELATIVE_STAGE_HEIGHT, RELATIVE_STAGE_WIDTH } from "../components/ImageView/Image";
-import {
-  faivvRelationDebug,
-  summarizeRegionForRelation,
-} from "../tags/object/Video/faivvRelationDebug";
 
 const RegionsMixin = types
   .model({
@@ -234,11 +230,6 @@ const RegionsMixin = types
         if (!self.isReadOnly() && (self.isDrawing || annotation.isDrawing)) return;
 
         if (!self.isReadOnly() && annotation.isLinkingMode) {
-          faivvRelationDebug("region.onClick", {
-            path: "addLinkedRegion",
-            note: "shape/canvas click while linking",
-            region: summarizeRegionForRelation(self),
-          });
           annotation.addLinkedRegion(self);
           annotation.stopLinkingMode();
           annotation.regionStore.unselectAll();

@@ -22,7 +22,6 @@ import { FF_DEV_2715, isFF } from "../../../utils/feature-flags";
 import ResizeObserver from "../../../utils/resize-observer";
 import { clamp, isDefined } from "../../../utils/utilities";
 import "./Video.scss";
-import { faivvRelationDebug, summarizeRegionForRelation } from "./faivvRelationDebug";
 import { VideoRegions } from "./VideoRegions";
 
 const isFFDev2715 = isFF(FF_DEV_2715);
@@ -433,16 +432,6 @@ const HtxVideoView = ({ item, store }) => {
       // linking 중에는 select===selected early-return을 건너뛰어 relation 완료
       // (이미 선택된 region을 keypoints에서 다시 눌러도 onClickRegion이 호출되도록)
       if (!linking && isDefined(select) && selected === select) return;
-
-      if (linking) {
-        faivvRelationDebug("videoTimeline.select", {
-          path: "onClickRegion",
-          note: "Video Timeline select while linking",
-          region: summarizeRegionForRelation(region),
-          select,
-          selected,
-        });
-      }
 
       region.onClickRegion();
     },

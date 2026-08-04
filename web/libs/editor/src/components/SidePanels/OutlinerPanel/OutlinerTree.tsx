@@ -20,15 +20,11 @@ import { Tooltip } from "../../../common/Tooltip/Tooltip";
 import Registry from "../../../core/Registry";
 import { PER_REGION_MODES } from "../../../mixins/PerRegionModes";
 import { Block, cn, Elem } from "../../../utils/bem";
-import { FF_DEV_2755, FF_DEV_3873, FF_OUTLINER_OPTIM, FF_PER_FIELD_COMMENTS, isFF } from "../../../utils/feature-flags";
+import { FF_DEV_2755, FF_DEV_3873, FF_OUTLINER_OPTIM, isFF } from "../../../utils/feature-flags";
 import { flatten, isDefined, isMacOS } from "../../../utils/utilities";
 import { NodeIcon } from "../../Node/Node";
 import { LockButton } from "../Components/LockButton";
 import { RegionControlButton } from "../Components/RegionControlButton";
-import {
-  faivvRelationDebug,
-  summarizeRegionForRelation,
-} from "../../../tags/object/Video/faivvRelationDebug";
 import "./TreeView.scss";
 import ResizeObserver from "../../../utils/resize-observer";
 import type { EventDataNode, Key } from "rc-tree/es/interface";
@@ -263,19 +259,9 @@ const useEventHandlers = () => {
     if (!self?.annotation) return;
 
     const annotation = self.annotation;
-    const ffPerFieldComments = isFF(FF_PER_FIELD_COMMENTS);
     const linking = !!annotation.isLinkingMode;
-    const selectedCount = annotation.selectedRegions?.length ?? annotation.selectedAreas?.length ?? null;
 
     if (multi) {
-      faivvRelationDebug("outliner.select", {
-        path: "multi_toggle",
-        note: "Ctrl/Cmd+click는 selection toggle만 — relation 생성 안 함. Create Relation 후 단일 클릭 필요",
-        multi: true,
-        linking,
-        selectedCount,
-        region: summarizeRegionForRelation(self),
-      });
       annotation.toggleRegionSelection(self);
       return;
     }
@@ -283,29 +269,11 @@ const useEventHandlers = () => {
     // canvas onClickRegion과 동일: linking 중 Outliner 단일 클릭 = relation 완료
     // (upstream은 FF_PER_FIELD_COMMENTS에 묶여 있어 faivv에서 relation이 막혔음)
     if (!self.isReadOnly() && linking) {
-      faivvRelationDebug("outliner.select", {
-        path: "addLinkedRegion",
-        note: "Outliner linking 완료",
-        multi: false,
-        linking: true,
-        ffPerFieldComments,
-        region: summarizeRegionForRelation(self),
-        selectedCount,
-      });
       annotation.addLinkedRegion(self);
       annotation.stopLinkingMode();
       annotation.regionStore.unselectAll();
       return;
     }
-
-    faivvRelationDebug("outliner.select", {
-      path: "select_or_unselect",
-      multi: false,
-      linking: false,
-      wasSelected: !!self.selected,
-      region: summarizeRegionForRelation(self),
-      selectedCount,
-    });
 
     const wasNotSelected = !self.selected;
 
