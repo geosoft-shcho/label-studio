@@ -10,7 +10,6 @@ import ToolMixin from "../mixins/Tool";
 import { MultipleClicksDrawingTool } from "../mixins/DrawingTool";
 import { NodeViews } from "../components/Node/Node";
 import { observe } from "mobx";
-import { faivvVideoManualDebug, summarizePoseShape } from "../tags/object/Video/faivvVideoManualDebug";
 
 /**
  * VideoPose drawing tool — VideoVectorTool과 동일한 점/선(skeleton) 클릭 UX.
@@ -187,28 +186,6 @@ const _Tool = types
 
       startDrawing(x, y) {
         if (!self.canStartDrawing()) {
-          const ctrl = self.control;
-          const states = self.obj?.activeStates?.() || [];
-          faivvVideoManualDebug("tool.startDrawing.blocked", {
-            disabled: !!self.disabled,
-            incorrectControl: !!self.isIncorrectControl?.(),
-            incorrectLabel: !!self.isIncorrectLabel?.(),
-            canStart: !!self.canStart?.(),
-            annotationIsDrawing: !!self.annotation?.isDrawing,
-            controlType: ctrl?.type,
-            controlSelected: !!ctrl?.isSelected,
-            stateTypes: self.tagTypes?.stateTypes,
-            activeLabelCount: states.length,
-            activeLabels: states.flatMap((t) => {
-              try {
-                return t.selectedValues?.() || [];
-              } catch {
-                return [];
-              }
-            }),
-            x: Math.round(x * 10) / 10,
-            y: Math.round(y * 10) / 10,
-          });
           return;
         }
 
@@ -217,7 +194,6 @@ const _Tool = types
         initialCursorPosition = { x, y };
 
         let area = self.current();
-        const created = !area;
 
         if (!area) {
           area = videoObj.addVideoPoseRegion({
@@ -226,9 +202,6 @@ const _Tool = types
           });
 
           if (!area) {
-            faivvVideoManualDebug("tool.startDrawing.no_region", {
-              hasPoseControl: !!videoObj?.videoPoseControl,
-            });
             return;
           }
 
@@ -250,34 +223,10 @@ const _Tool = types
 
         self.listenForClose();
 
-        faivvVideoManualDebug("tool.startDrawing", {
-          created,
-          regionId: area.id,
-          frame: videoObj?.frame,
-          x: Math.round(x * 10) / 10,
-          y: Math.round(y * 10) / 10,
-          labels: (videoObj?.activeStates?.() || []).flatMap((t) => {
-            try {
-              return t.selectedValues?.() || [];
-            } catch {
-              return [];
-            }
-          }),
-          hasVectorRef: !!area.vectorRef,
-          seq0Verts: area.sequence?.[0]?.vertices?.length ?? 0,
-        });
-
         // VideoVector와 동일: empty면 startPoint를 다음 tick에 (VideoVectorShape mount 대기)
         if (!area || (area.sequence?.[0]?.vertices?.length ?? 0) === 0) {
           setTimeout(() => {
-            const a = self.currentArea;
-            faivvVideoManualDebug("tool.startPoint.deferred", {
-              regionId: a?.id,
-              hasVectorRef: !!a?.vectorRef,
-              x: Math.round(x * 10) / 10,
-              y: Math.round(y * 10) / 10,
-            });
-            a?.startPoint(x, y);
+            self.currentArea?.startPoint(x, y);
           });
         }
       },
@@ -331,30 +280,10 @@ const _Tool = types
             // (finished=false 이면 drawing 유지 → 연속 점·선)
             setTimeout(() => {
               const area = self.currentArea;
-              const before = summarizePoseShape(area?.getShape?.(self.obj?.frame));
-              faivvVideoManualDebug("tool.mouseup.commit", {
-                regionId: area?.id,
-                hasVectorRef: !!area?.vectorRef,
-                x: Math.round(x * 10) / 10,
-                y: Math.round(y * 10) / 10,
-                before,
-                finished: !!area?.finished,
-                isDrawing: !!self.isDrawing,
-              });
               area?.startPoint(x, y);
               area?.commitPoint(x, y);
-              const after = summarizePoseShape(area?.getShape?.(self.obj?.frame));
-              faivvVideoManualDebug("tool.mouseup.afterCommit", {
-                regionId: area?.id,
-                after,
-                finished: !!area?.finished,
-              });
               self.annotation?.history?.unfreeze();
               self.finishDrawing();
-              faivvVideoManualDebug("tool.mouseup.finishDrawing", {
-                stillDrawing: !!self.isDrawing,
-                currentAreaId: self.currentArea?.id ?? null,
-              });
             });
           }
         }

@@ -11,7 +11,6 @@ import { Rectangle } from "./Rectangle";
 import { VideoVectorShape } from "./VideoVector";
 import { createBoundingBoxGetter, createOnDragMoveHandler } from "./TransformTools";
 import ToolsManager from "../../../tools/Manager";
-import { faivvVideoManualDebug } from "./faivvVideoManualDebug";
 
 export const MIN_SIZE = 5;
 
@@ -105,13 +104,7 @@ const VideoRegionsPure = ({
       // React 17 + Konva: setDrawingMode(false)가 동기 flush되면 click 경로에서도
       // newRegion(0×0)이 여기로 들어올 수 있음 → 스킵 (라벨 unselect 방지)
       if (Math.abs(newRegion.width) < MIN_SIZE && Math.abs(newRegion.height) < MIN_SIZE) {
-        faivvVideoManualDebug("bbox.addVideoRegion.skip", {
-          reason: "too_small",
-          width: newRegion.width,
-          height: newRegion.height,
-          frame: item.frame,
-        });
-        setNewRegion(null);
+                setNewRegion(null);
         return;
       }
 
@@ -132,26 +125,7 @@ const VideoRegionsPure = ({
 
       const fixedRegion = { x, y, width, height };
 
-      faivvVideoManualDebug("bbox.addVideoRegion", {
-        frame: item.frame,
-        region: {
-          x: Math.round(x * 100) / 100,
-          y: Math.round(y * 100) / 100,
-          width: Math.round(width * 100) / 100,
-          height: Math.round(height * 100) / 100,
-        },
-        hasPoseControl: !!item.videoPoseControl,
-        hasRectControl: !!item.videoRectangleControl,
-        controlSelected: !!item.videoPoseControl?.isSelected,
-        activeLabels: (item.activeStates?.() || []).flatMap((t) => {
-          try {
-            return t.selectedValues?.() || [];
-          } catch {
-            return [];
-          }
-        }),
-      });
-      item.addVideoRegion(fixedRegion);
+            item.addVideoRegion(fixedRegion);
       setNewRegion(null);
     }
   }, [isDrawing, workinAreaCoordinates, videoDimensions]);
@@ -204,40 +178,19 @@ const VideoRegionsPure = ({
 
     // 이미 drawing 중인 세션만 툴로 직행
     if (vectorTool?.isDrawing) {
-      faivvVideoManualDebug("gesture.gate", {
-        path: "tool",
-        reason: "isDrawing",
-        hitStage,
-        tool: vectorTool?.toolName,
-        frame: item.frame,
-      });
-      vectorTool.event("mousedown", e.evt, [x, y]);
+            vectorTool.event("mousedown", e.evt, [x, y]);
       return;
     }
 
     // keypoints resume: 기존 shape 히트일 때만 (빈 Stage는 bbox/click 제스처 유지)
     if (vectorTool?.canResumeDrawing && !hitStage) {
-      faivvVideoManualDebug("gesture.gate", {
-        path: "tool",
-        reason: "resume_hit_shape",
-        hitStage,
-        tool: vectorTool?.toolName,
-        canResume: true,
-        frame: item.frame,
-      });
-      vectorTool.event("mousedown", e.evt, [x, y]);
+            vectorTool.event("mousedown", e.evt, [x, y]);
       return;
     }
 
     // VideoVectorTool만: 기존처럼 빈 Stage에서도 resume 허용
     if (vectorTool?.toolName === "VideoVectorTool" && vectorTool?.canResumeDrawing) {
-      faivvVideoManualDebug("gesture.gate", {
-        path: "tool",
-        reason: "videovector_resume",
-        hitStage,
-        frame: item.frame,
-      });
-      vectorTool.event("mousedown", e.evt, [x, y]);
+            vectorTool.event("mousedown", e.evt, [x, y]);
       return;
     }
 
@@ -248,24 +201,8 @@ const VideoRegionsPure = ({
     if (!isInBounds) return;
 
     if (isPoseDrawingTool(vectorTool)) {
-      faivvVideoManualDebug("gesture.gate", {
-        path: "bbox",
-        reason: "empty_stage",
-        hitStage: true,
-        tool: vectorTool?.toolName,
-        canResume: !!vectorTool?.canResumeDrawing,
-        x: Math.round(x * 10) / 10,
-        y: Math.round(y * 10) / 10,
-        frame: item.frame,
-      });
-      poseGestureRef.current = { x, y, mode: "pending", tool: vectorTool, evt: e.evt };
-      faivvVideoManualDebug("gesture.down", {
-        tool: vectorTool?.toolName,
-        x: Math.round(x * 10) / 10,
-        y: Math.round(y * 10) / 10,
-        frame: item.frame,
-      });
-      item.annotation.unselectAreas();
+            poseGestureRef.current = { x, y, mode: "pending", tool: vectorTool, evt: e.evt };
+            item.annotation.unselectAreas();
       setNewRegion({ x, y, width: 0, height: 0 });
       setDrawingMode(true);
       return;
@@ -301,19 +238,7 @@ const VideoRegionsPure = ({
       const dy = Math.abs(y - gesture.y);
       if (dx >= MIN_SIZE || dy >= MIN_SIZE) {
         poseGestureRef.current = { ...gesture, mode: "bbox" };
-        faivvVideoManualDebug("gesture.bboxMode", {
-          dx: Math.round(dx),
-          dy: Math.round(dy),
-          frame: item.frame,
-        });
-        faivvVideoManualDebug("bbox.preview", {
-          x: Math.round(gesture.x * 10) / 10,
-          y: Math.round(gesture.y * 10) / 10,
-          dx: Math.round(dx),
-          dy: Math.round(dy),
-          frame: item.frame,
-        });
-      }
+                      }
     }
 
     setNewRegion((region) => ({
@@ -351,23 +276,10 @@ const VideoRegionsPure = ({
           // React 17+Konva: newRegion을 먼저 비운 뒤 isDrawing=false (0×0 createResult→라벨 해제 방지)
           setNewRegion(null);
           setDrawingMode(false);
-          faivvVideoManualDebug("bbox.cancel", { reason: "too_small", dx, dy });
-        } else {
+                  } else {
           setNewRegion((region) => ({ ...region, width: x - region.x, height: y - region.y }));
           setDrawingMode(false);
-          faivvVideoManualDebug("bbox.commit", {
-            tool: gesture.tool?.toolName,
-            x: Math.round(gesture.x * 10) / 10,
-            y: Math.round(gesture.y * 10) / 10,
-            width: Math.round((x - gesture.x) * 10) / 10,
-            height: Math.round((y - gesture.y) * 10) / 10,
-            frame: item.frame,
-            media: {
-              w: videoDimensions?.width,
-              h: videoDimensions?.height,
-            },
-          });
-        }
+                  }
         return;
       }
 
@@ -377,28 +289,7 @@ const VideoRegionsPure = ({
       setDrawingMode(false);
       const tool = gesture.tool;
       const poseCtrl = item.videoPoseControl;
-      faivvVideoManualDebug("keypoint.click", {
-        tool: tool?.toolName,
-        x: Math.round(x * 10) / 10,
-        y: Math.round(y * 10) / 10,
-        frame: item.frame,
-        toolIsDrawing: !!tool?.isDrawing,
-        canResume: !!tool?.canResumeDrawing,
-        controlSelected: !!poseCtrl?.isSelected,
-        controlType: poseCtrl?.type,
-        activeLabels: (item.activeStates?.() || []).flatMap((t) => {
-          try {
-            return t.selectedValues?.() || [];
-          } catch {
-            return [];
-          }
-        }),
-        media: {
-          w: videoDimensions?.width,
-          h: videoDimensions?.height,
-        },
-      });
-      tool.event("mousedown", gesture.evt || e.evt, [gesture.x, gesture.y]);
+            tool.event("mousedown", gesture.evt || e.evt, [gesture.x, gesture.y]);
       tool.event("mouseup", e.evt, [x, y]);
       return;
     }

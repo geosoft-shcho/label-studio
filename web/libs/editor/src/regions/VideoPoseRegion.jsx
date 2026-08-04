@@ -7,7 +7,6 @@ import { AreaMixin } from "../mixins/AreaMixin";
 import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
 import { mediaBboxToCanvas } from "../tags/object/Video/mediaToCanvas";
-import { faivvVideoManualDebug, summarizePoseShape, summarizeRegionForBboxEdit } from "../tags/object/Video/faivvVideoManualDebug";
 
 const BBOX_PROPS = ["x", "y", "width", "height", "rotation"];
 
@@ -227,11 +226,6 @@ const Model = types
   .actions((self) => ({
     setVectorRef(ref) {
       self.vectorRef = ref;
-      faivvVideoManualDebug("region.setVectorRef", {
-        regionId: self.id,
-        hasRef: !!ref,
-        isDrawing: !!self.isDrawing,
-      });
     },
 
     /** 검출됨(enabled≠false)인 closest KF 구간만 bbox·skeleton 표시.
@@ -278,30 +272,9 @@ const Model = types
         ];
       }
 
-      const verts = data?.vertices;
-      if (Array.isArray(verts) || data?.width != null || data?.x != null) {
-        const target = summarizeRegionForBboxEdit(self);
-        faivvVideoManualDebug("region.updateShape", {
-          frame,
-          segmentId: target?.segmentId ?? null,
-          target,
-          regionId: self.id,
-          shape: summarizePoseShape({
-            ...data,
-            vertices: verts ?? self.getShape(frame)?.vertices,
-          }),
-        });
-      }
     },
 
     startPoint(x, y) {
-      const ok = !!self.vectorRef;
-      faivvVideoManualDebug("region.startPoint", {
-        regionId: self.id,
-        hasVectorRef: ok,
-        x: Math.round(Number(x) * 10) / 10,
-        y: Math.round(Number(y) * 10) / 10,
-      });
       self.vectorRef?.startPoint(x, y);
     },
 
@@ -310,19 +283,7 @@ const Model = types
     },
 
     commitPoint(x, y) {
-      const ok = !!self.vectorRef;
-      faivvVideoManualDebug("region.commitPoint", {
-        regionId: self.id,
-        hasVectorRef: ok,
-        x: Math.round(Number(x) * 10) / 10,
-        y: Math.round(Number(y) * 10) / 10,
-        before: summarizePoseShape(self.getShape(self.object?.frame)),
-      });
       self.vectorRef?.commitPoint(x, y);
-      faivvVideoManualDebug("region.commitPoint.after", {
-        regionId: self.id,
-        after: summarizePoseShape(self.getShape(self.object?.frame)),
-      });
     },
   }));
 
