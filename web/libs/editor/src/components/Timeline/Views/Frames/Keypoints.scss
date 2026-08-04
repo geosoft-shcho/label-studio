@@ -16,8 +16,9 @@
     display: flex;
     padding: 0 8px;
     justify-content: space-between;
+    // Match timeline-frames__labels-bg (sand_0) so empty gaps stay solid label column.
     background: linear-gradient(0deg, var(--hover), var(--hover) 100%), linear-gradient(0deg, var(--sand_0), var(--sand_0) 100%);
-    box-shadow: 1px 0 0 var(--black_5);
+    box-shadow: 1px 0 0 var(--sand_300);
   }
 
   &__data {

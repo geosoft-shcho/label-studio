@@ -15,14 +15,17 @@
     width: 100%;
   }
 
+  // Label sidebar (left --offset). Opaque so frame ticks never show through.
   &__labels-bg {
     top: 0;
     left: 0;
     height: 100%;
     z-index: 3;
-    background-color: var(--sand_100);
+    pointer-events: none;
+    background-color: var(--sand_0);
     position: absolute;
-    box-shadow: -1px 0 0 var(--black_5);
+    // Right-edge divider: label column | frame track
+    box-shadow: 1px 0 0 var(--sand_300);
   }
 
   &__filler {
@@ -33,6 +36,7 @@
     width: calc(var(--view-size) + var(--offset));
   }
 
+  // Frame track only (after --offset). Tick grid for the keypoint lanes.
   &__background {
     inset: 0 0 0 var(--offset);
     z-index: 1;
@@ -58,16 +62,23 @@
     box-sizing: content-box;
     padding-top: 24px;
     border-top: 1px solid var(--sand_300);
+    // Label column solid; frame ticks only after --offset.
     // Must use --frame-size (step), not --frame-width — otherwise fine stripes
     // punch through the playhead and look like multiple bars.
-    background-image: repeating-linear-gradient(
+    background-color: var(--sand_0);
+    background-image:
+      repeating-linear-gradient(
         90deg,
         var(--sand_0),
         var(--sand_0) var(--frame-size),
         transparent var(--frame-size),
         transparent calc(var(--frame-size) + 1px)
       ),
-      linear-gradient(0deg, var(--sand_100), transparent 50%);
+      linear-gradient(0deg, var(--sand_100), transparent 50%),
+      linear-gradient(var(--sand_100), var(--sand_100));
+    background-position: var(--offset) 0, var(--offset) 0, var(--offset) 0;
+    background-repeat: repeat, no-repeat, no-repeat;
+    background-size: auto, calc(100% - var(--offset)) 100%, calc(100% - var(--offset)) 100%;
   }
 
   &__indicator {
