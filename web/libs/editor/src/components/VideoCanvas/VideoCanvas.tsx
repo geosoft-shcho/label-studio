@@ -52,6 +52,66 @@ type VideoDimentions = {
 
 export const clampZoom = (value: number) => clamp(value, MIN_ZOOM, MAX_ZOOM);
 
+/**
+ * preload=metadata often has duration but no decoded first frame, so canvas
+ * drawImage stays blank until play. Kick a tiny seek (then back to 0) once.
+ */
+const ensureFirstFrameDecoded = (video: HTMLVideoElement, onReady: () => void) => {
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    onReady();
+  };
+
+  const safety = setTimeout(finish, 800);
+
+  const runPaint = () => {
+    clearTimeout(safety);
+    finish();
+  };
+
+  const seekToZeroAndPaint = () => {
+    if (video.currentTime === 0) {
+      runPaint();
+      return;
+    }
+    const onZero = () => {
+      video.removeEventListener("seeked", onZero);
+      runPaint();
+    };
+    video.addEventListener("seeked", onZero);
+    try {
+      video.currentTime = 0;
+    } catch {
+      runPaint();
+    }
+  };
+
+  const onSeeked = () => {
+    video.removeEventListener("seeked", onSeeked);
+    seekToZeroAndPaint();
+  };
+
+  video.addEventListener("seeked", onSeeked);
+
+  const anyVideo = video as HTMLVideoElement & {
+    requestVideoFrameCallback?: (cb: () => void) => number;
+  };
+  if (typeof anyVideo.requestVideoFrameCallback === "function") {
+    anyVideo.requestVideoFrameCallback(() => {
+      // Frame may already be present after the kick; still wait for seeked→0.
+    });
+  }
+
+  try {
+    // Non-zero nudge forces decode under preload=metadata when currentTime is 0.
+    video.currentTime = video.currentTime === 0 ? 0.001 : video.currentTime;
+  } catch {
+    runPaint();
+  }
+};
+
 /** Contain-fit (zoom to fit). May be >1 so small videos still fill the player. */
 const zoomRatio = (canvasWidth: number, canvasHeight: number, width: number, height: number) => {
   if (!canvasWidth || !canvasHeight || !width || !height) return 1;
@@ -449,39 +509,52 @@ export const VideoCanvas = memo(
       let isLoaded = false;
       let loadTimeout: ReturnType<typeof setTimeout> | undefined = undefined;
       let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
+      let cancelled = false;
+
+      const finalizeLoad = (video: HTMLVideoElement) => {
+        if (cancelled) return;
+
+        const length = Math.ceil(video.duration * framerate);
+        const [width, height] = [video.videoWidth, video.videoHeight];
+
+        const dimensions = {
+          width,
+          height,
+          ratio: zoomRatio(canvasWidth, canvasHeight, width, height),
+        };
+
+        setVideoDimensions(dimensions);
+        setLength(length);
+        setLoading(false);
+
+        // First canvas paint after a decoded frame exists (preload=metadata).
+        ensureFirstFrameDecoded(video, () => {
+          if (cancelled) return;
+          updateFrame(true);
+        });
+
+        props.onLoad?.({
+          ...refSource,
+          videoDimensions: dimensions,
+          length,
+        });
+      };
 
       const checkVideoLoaded = () => {
-        if (isLoaded) return;
+        if (isLoaded || cancelled) return;
 
         if (supportedFileTypeRef.current === false) {
           setLoading(false);
           return;
         }
 
-        if (videoRef.current?.readyState === 4) {
+        const video = videoRef.current;
+        // HAVE_CURRENT_DATA(2)+ : dimensions usable; first-frame paint is separate.
+        if (video && video.readyState >= 2 && video.videoWidth > 0) {
           isLoaded = true;
-          const video = videoRef.current;
 
           loadTimeout = setTimeout(() => {
-            const length = Math.ceil(video.duration * framerate);
-            const [width, height] = [video.videoWidth, video.videoHeight];
-
-            const dimensions = {
-              width,
-              height,
-              ratio: zoomRatio(canvasWidth, canvasHeight, width, height),
-            };
-
-            setVideoDimensions(dimensions);
-            setLength(length);
-            setLoading(false);
-            updateFrame(true);
-
-            props.onLoad?.({
-              ...refSource,
-              videoDimensions: dimensions,
-              length,
-            });
+            finalizeLoad(video);
           }, 200);
           return;
         }
@@ -492,6 +565,7 @@ export const VideoCanvas = memo(
       checkVideoLoaded();
 
       return () => {
+        cancelled = true;
         if (timeout) {
           clearTimeout(timeout);
         }
@@ -548,7 +622,7 @@ export const VideoCanvas = memo(
         <VirtualVideo
           ref={videoRef as MutableRefObject<HTMLVideoElement>}
           controls={false}
-          preload="auto"
+          preload="metadata"
           src={props.src}
           muted={props.muted ?? false}
           canPlayType={(supported) => (supportedFileTypeRef.current = supported)}

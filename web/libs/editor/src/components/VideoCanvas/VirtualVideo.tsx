@@ -38,6 +38,15 @@ const isBinary = (mimeType: string | null | undefined) => {
   return mimeType.includes("octet-stream");
 };
 
+type VideoPreload = HTMLVideoElement["preload"];
+
+const resolveVideoPreload = (value: VideoHTMLAttributes<HTMLVideoElement>["preload"]): VideoPreload => {
+  if (value === "none" || value === "metadata" || value === "auto" || value === "") {
+    return value;
+  }
+  return "metadata";
+};
+
 export const canPlayUrl = async (url: string) => {
   const video = document.createElement("video");
 
@@ -62,8 +71,12 @@ export const canPlayUrl = async (url: string) => {
   const supported = isBinary(fileMimeType) || (!!fileMimeType && video.canPlayType(fileMimeType) !== "");
   const modalExists = document.querySelector(".ant-modal");
 
-  if (!supported && !modalExists)
-    InfoModal.error("There has been an error rendering your video, please check the format is supported");
+  if (!supported && !modalExists) {
+    InfoModal.error(
+      "There has been an error rendering your video, please check the format is supported",
+      "Error",
+    );
+  }
   return supported;
 };
 
@@ -93,7 +106,9 @@ export const VirtualVideo = forwardRef<HTMLVideoElement, VirtualVideoProps>((pro
 
     videoEl.muted = !!props.muted;
     videoEl.controls = false;
-    videoEl.preload = "auto";
+    // metadata: long remote Range streams (e.g. /assets/.../content) must not
+    // aggressively buffer like preload=auto — seek/play still use HTTP Range.
+    videoEl.preload = resolveVideoPreload(props.preload);
 
     if (isFF(FF_LSDV_4711)) videoEl.crossOrigin = "anonymous";
 
@@ -115,7 +130,7 @@ export const VirtualVideo = forwardRef<HTMLVideoElement, VirtualVideoProps>((pro
     }
 
     video.current = videoEl;
-  }, []);
+  }, [props.muted, props.preload]);
 
   const attachRef = useCallback((video: HTMLVideoElement | null) => {
     if (ref instanceof Function) {
