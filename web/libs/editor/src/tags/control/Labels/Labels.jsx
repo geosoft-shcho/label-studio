@@ -1,7 +1,8 @@
 import { observer } from "mobx-react";
 import { cast, types } from "mobx-state-tree";
+import ColorScheme from "pleasejs";
 
-import { defaultStyle } from "../../../core/Constants";
+import Constants, { defaultStyle } from "../../../core/Constants";
 import { customTypes } from "../../../core/CustomTypes";
 import { guidGenerator } from "../../../core/Helpers";
 import Registry from "../../../core/Registry";
@@ -15,6 +16,18 @@ import { Block } from "../../../utils/bem";
 import ControlBase from "../Base";
 import "../Label";
 import "./Labels.scss";
+
+/**
+ * LSF 공식 자동 색 — Label.jsx `_updateBackgroundColor`와 동일.
+ * background 미지정·LABEL_BACKGROUND이면 pleasejs seed 색 생성.
+ */
+function officialLabelBackground(seed, explicitBackground) {
+  if (typeof explicitBackground === "string" && explicitBackground.trim()) {
+    const bg = explicitBackground.trim();
+    if (bg !== Constants.LABEL_BACKGROUND) return bg;
+  }
+  return ColorScheme.make_color({ seed: String(seed || "") })[0];
+}
 
 /**
  * The `Labels` tag provides a set of labels for labeling regions in tasks for machine learning and data science projects. Use the `Labels` tag to create a set of labels that can be assigned to identified region and specify the values of labels to assign to regions.
@@ -114,8 +127,9 @@ const Model = LabelMixin.views((self) => ({
    * API hydrate 시 config 생성 이후 발견된 정확한 라벨을 안전하게 등록한다.
    * 첫 라벨로 암묵 fallback하지 않고 VideoRectangle result label을 보존하기 위한
    * faivv fork 확장점이다.
+   * background 미지정 시 LSF 공식 ColorScheme(pleasejs, seed=라벨명) 사용.
    */
-  ensureLabelValue(value, background = defaultStyle.fillcolor) {
+  ensureLabelValue(value, background) {
     const normalized = typeof value === "string" ? value.trim() : "";
     if (!normalized) return null;
     const existing = self.findLabel(normalized);
@@ -128,26 +142,45 @@ const Model = LabelMixin.views((self) => ({
       type: "label",
       value: normalized,
       _value: normalized,
-      background,
+      background: officialLabelBackground(normalized, background),
     });
     self.annotation?.setupHotKeys?.();
     self.needsUpdate?.();
     return self.findLabel(normalized);
   },
 
-  replaceLabelValues(values, background = defaultStyle.fillcolor) {
-    const normalized = [];
-    (Array.isArray(values) ? values : []).forEach((value) => {
-      const label = typeof value === "string" ? value.trim() : "";
-      if (label && !normalized.includes(label)) normalized.push(label);
+  /**
+   * 라벨 목록을 교체한다. 각 라벨은 LSF 공식 ColorScheme(seed=value) 색을 쓴다.
+   * @param {string[]|{value:string,background?:string}[]} values
+   * @param {string} [_legacyBackground] 레거시 동일색 인자 — 무시(공식 seed 색 사용)
+   */
+  replaceLabelValues(values, _legacyBackground) {
+    const entries = [];
+    (Array.isArray(values) ? values : []).forEach((raw) => {
+      if (raw && typeof raw === "object") {
+        const label = typeof raw.value === "string" ? raw.value.trim() : "";
+        if (!label || entries.some((e) => e.value === label)) return;
+        entries.push({
+          value: label,
+          background: officialLabelBackground(label, raw.background),
+        });
+        return;
+      }
+      const label = typeof raw === "string" ? raw.trim() : "";
+      if (label && !entries.some((e) => e.value === label)) {
+        entries.push({
+          value: label,
+          background: officialLabelBackground(label),
+        });
+      }
     });
-    if (!normalized.length) return [];
+    if (!entries.length) return [];
 
     for (let i = self.children.length - 1; i >= 0; i--) {
       const child = self.children[i];
       if (child?.type === "label" && !child.isEmpty) self.children.splice(i, 1);
     }
-    normalized.forEach((value) => {
+    entries.forEach(({ value, background }) => {
       self.children.push({
         type: "label",
         value,
@@ -157,7 +190,7 @@ const Model = LabelMixin.views((self) => ({
     });
     self.annotation?.setupHotKeys?.();
     self.needsUpdate?.();
-    return normalized.map((value) => self.findLabel(value)).filter(Boolean);
+    return entries.map((e) => self.findLabel(e.value)).filter(Boolean);
   },
 
   afterCreate() {
