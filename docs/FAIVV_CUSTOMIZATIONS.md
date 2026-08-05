@@ -9,6 +9,7 @@ These changes support faivv-flow iframe embed (`faivv-flow/web/tools/label-studi
 | `web/libs/editor/src/components/Waveform/Waveform.jsx` | Honor `splitchannels` XML attribute (legacy WaveSurfer path) |
 | `web/libs/editor/src/components/VideoCanvas/VideoCanvas.tsx` | `zoomRatio` contain-fit; `preload="metadata"`; 로드 후 seek 킥으로 첫 프레임 canvas paint (흰 화면 방지) |
 | `web/libs/editor/src/components/VideoCanvas/VirtualVideo.tsx` | 실제 `<video>` 생성 시 `preload` 기본값 `metadata` (`auto` 하드코딩 제거, props 우선) |
+| `web/libs/editor/src/lib/AudioUltra/Media/WaveformAudio.ts` | html5 `<audio preload="metadata">`; ready는 `canplay`/`loadedmetadata` (canplaythrough 의존 제거). 파형 decode용 XHR은 별도 |
 | `web/libs/editor/src/tags/object/Video/HtxVideo.jsx` | stageRef; 기본 zoom to fit; FAIVV VideoDebug 오버레이 (`FAIVV_VIDEO_DEBUG=0` 로 끔) |
 | `web/libs/editor/src/tags/object/Video/mediaToCanvas.js` | Media % → canvas px (zoom/pan); shared by bbox & keypoints |
 | `web/libs/editor/src/regions/videoKeypoints.js` | Keypoint interpolation on VideoRectangle `sequence` |

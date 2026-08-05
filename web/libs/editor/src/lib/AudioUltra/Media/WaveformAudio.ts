@@ -85,8 +85,9 @@ export class WaveformAudio extends Events<WaveformAudioEvents> {
     delete this.decoderPromise;
     this.decoder?.destroy();
     delete this.decoder;
-    this.el?.removeEventListener("error", this.mediaReady);
-    this.el?.removeEventListener("canplaythrough", this.mediaReady);
+    this.el?.removeEventListener("error", this.mediaError);
+    this.el?.removeEventListener("canplay", this.mediaReady);
+    this.el?.removeEventListener("loadedmetadata", this.mediaReady);
     this.el?.remove();
     delete this.el;
     delete this.buffer;
@@ -149,7 +150,9 @@ export class WaveformAudio extends Events<WaveformAudioEvents> {
     if (!this.src || this.el || this.playerType !== "html5") return;
 
     this.el = document.createElement("audio");
-    this.el.preload = "auto";
+    // metadata: long remote Range streams must not aggressively buffer like preload=auto.
+    // (Waveform decode may still XHR the file separately for peaks — playback element stays light.)
+    this.el.preload = "metadata";
     this.el.setAttribute("data-testid", "waveform-audio");
     this.el.style.display = "none";
 
@@ -162,7 +165,9 @@ export class WaveformAudio extends Events<WaveformAudioEvents> {
       this.mediaReject = reject;
     });
 
-    this.el.addEventListener("canplaythrough", this.mediaReady);
+    // canplaythrough often never fires under preload=metadata; canplay/loadedmetadata are enough to play.
+    this.el.addEventListener("canplay", this.mediaReady);
+    this.el.addEventListener("loadedmetadata", this.mediaReady);
     this.el.addEventListener("error", this.mediaError);
     this.loadMedia();
   }
@@ -189,7 +194,7 @@ export class WaveformAudio extends Events<WaveformAudioEvents> {
   };
 
   /**
-   * Load the media element with the audio source and begin an initial playback buffer
+   * Attach the audio source. Playback buffering follows preload=metadata (Range-friendly).
    */
   private loadMedia() {
     if (!this.src || !this.el) return;
