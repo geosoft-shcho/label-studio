@@ -83,11 +83,16 @@ clip 자막은 TextArea / `_faivvCaptionText` / `window.__faivvRegionCaptions` �
   transcriptFrom="transcript"
   attachmentsFrom="audio_evidence"
   savedAttachmentsFrom="saved_segment_attachments"
-  videoObjectsFrom="box"
-  poseObjectsFrom="pose_box"
+  videoObjectsFrom="box,video_vector"
+  poseObjectsFrom="box"
   height="280" embedAttachments="true"
   showLanes="stt,object,pose_object,saved_attachment,relation" />
 ```
+
+Soft split: AI·수동 bbox가 같은 `box` control을 공유한다. 레인 분기는 **confidence**
+(설계-20). AI keypoints는 pose overlay이며 수동 tip/grip만 `video_vector`.
+저장 시 AI ownership segment는 confidence unset이어도 pose 레이어에 유지한다
+(표시≠레이어 배정).
 
 name/속성 문자열은 다음 세 곳과 **동일**해야 한다.
 
