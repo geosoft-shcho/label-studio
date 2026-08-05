@@ -11,7 +11,7 @@ export const onlyProps = (props, obj) => {
   return Object.fromEntries(props.map((prop) => [prop, obj[prop]]));
 };
 
-/** 설계-20: LayerSegment.confidence set(0 포함) → 자동 태깅. */
+/** 설계-20: LayerSegment.confidence set(0 포함) → 자동 라벨링. */
 function finiteConfidence(v) {
   if (v == null || v === "") return null;
   const n = Number(v);

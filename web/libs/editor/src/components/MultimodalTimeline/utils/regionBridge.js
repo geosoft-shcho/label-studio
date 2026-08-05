@@ -786,7 +786,7 @@ function shortSegmentId(id) {
   return s.length <= 10 ? s : s.slice(0, 10);
 }
 
-/** LayerSegment.confidence → region (설계-20). 있으면 자동 태깅. */
+/** LayerSegment.confidence → region (설계-20). 있으면 자동 라벨링. */
 function regionConfidenceValue(region) {
   if (!regionIsUsable(region)) return null;
   try {
