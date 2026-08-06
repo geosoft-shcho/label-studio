@@ -11,6 +11,7 @@ import {
   normalizeReviewed,
   normalizeSegmentSource,
 } from "../utils/segmentSource";
+import { logRegionSerialize } from "../utils/faivvVectorEditDebug";
 
 export const onlyProps = (props, obj) => {
   return Object.fromEntries(props.map((prop) => [prop, obj[prop]]));
@@ -136,6 +137,8 @@ const Model = types
       const { framerate, length: framesCount } = self.object;
 
       const duration = self.object?.ref?.current?.duration ?? 0;
+
+      logRegionSerialize(self, self.sequence);
 
       const value = {
         framesCount,

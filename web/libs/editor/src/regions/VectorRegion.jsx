@@ -18,6 +18,9 @@ import { Group } from "react-konva";
 /**
  * VectorRegion - Vector graphics region with coordinate system conversion
  *
+ * Image 전용 (Registry "image"). 영상 tip/grip 편집 경로 아님.
+ * 영상은 VideoPoseRegion / VideoVectorRegion + VideoVectorShape 사용.
+ *
  * Handles conversion between Label Studio's relative coordinates (0-100%) and KonvaVector's image coordinates (pixels).
  *
  * **Coordinate Systems:**

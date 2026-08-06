@@ -1,10 +1,28 @@
 import { observer } from "mobx-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group } from "react-konva";
+import { isAlive } from "mobx-state-tree";
 import { useRegionStyles } from "../../../hooks/useRegionColor";
 import { KonvaVector } from "../../../components/KonvaVector/KonvaVector";
 import { LabelOnVideoBbox } from "../../../components/ImageView/LabelOnRegion";
 import ToolsManager from "../../../tools/Manager";
+import {
+  diffKeypointsVsVertices,
+  isFaivvVectorEditDebugEnabled,
+  logFaivvVectorEdit,
+  previewMergedKeyframe,
+  regionDebugMeta,
+  summarizeKeyframe,
+  summarizeVertices,
+} from "../../../utils/faivvVectorEditDebug";
+
+function regionAlive(reg) {
+  try {
+    return !!reg && isAlive(reg);
+  } catch (e) {
+    return false;
+  }
+}
 
 /**
  * Convert vertices from percent (0-100) to pixel coords using working area dimensions.
@@ -174,6 +192,7 @@ const VideoVectorPure = ({
   const latestDragPixelsRef = useRef(null);
   const [dragPixels, setDragPixels] = useState(null);
   const lastCommittedRef = useRef(null);
+  const alive = regionAlive(reg);
 
   const style = useRegionStyles(reg, { includeFill: true });
   const { realWidth: waWidth, realHeight: waHeight, scale: waScale, x: waX, y: waY } = workingArea;
@@ -185,8 +204,8 @@ const VideoVectorPure = ({
   commitContextRef.current = { waWidth, waHeight, frame };
 
   const storePixelVertices = useMemo(
-    () => percentToPixelVertices(box.vertices || [], waWidth, waHeight),
-    [box.vertices, waWidth, waHeight],
+    () => percentToPixelVertices(box?.vertices || [], waWidth, waHeight),
+    [box?.vertices, waWidth, waHeight],
   );
 
   let pixelVertices;
@@ -195,7 +214,7 @@ const VideoVectorPure = ({
     pixelVertices = dragPixels;
   } else if (
     lastCommittedRef.current &&
-    box.vertices &&
+    box?.vertices &&
     verticesMatch(box.vertices, lastCommittedRef.current.percent)
   ) {
     pixelVertices = lastCommittedRef.current.pixels;
@@ -206,7 +225,7 @@ const VideoVectorPure = ({
 
   const bbox = useMemo(() => computeBBox(pixelVertices), [pixelVertices]);
 
-  const control = reg.results?.[0]?.from_name;
+  const control = alive ? reg.results?.[0]?.from_name : null;
 
   const stageTransform = useMemo(
     () => ({
@@ -218,28 +237,37 @@ const VideoVectorPure = ({
   );
 
   const pointRadius = useMemo(() => getPointRadiusFromSize(control), [control?.pointsize]);
-  const isReadOnly = reg.isReadOnly();
+  const isReadOnly = alive ? reg.isReadOnly() : true;
 
   // Match image VectorRegion's disabled/selected detection pattern exactly:
   //   model:  disabled = (tool?.disabled) || isReadOnly || (!selected && !isDrawing)
   //   view:   kvSelected = !disabled,  kvDisabled = isReadOnly
-  const objectTag = reg.object;
+  const objectTag = alive ? reg.object : null;
   const manager = objectTag ? ToolsManager.getInstance({ name: objectTag.name }) : null;
   const selectedTool = manager?.findSelectedTool?.();
   const toolDisabled = selectedTool?.disabled ?? false;
-  const kvDisabled = toolDisabled || isReadOnly || !listening || (!selected && !reg.isDrawing);
+  const isDrawing = alive ? !!reg.isDrawing : false;
+  const kvDisabled =
+    !alive || toolDisabled || isReadOnly || !listening || (!selected && !isDrawing);
   const kvSelected = !kvDisabled;
 
   const handleRef = useCallback(
     (kv) => {
       vectorRef.current = kv;
-      reg.setVectorRef(kv);
+      // 저장·deserialize 후 구 area는 tree에서 제거됨 — dead node setVectorRef 금지
+      if (!regionAlive(reg)) return;
+      try {
+        reg.setVectorRef(kv);
+      } catch (e) {
+        /* region already detached */
+      }
     },
     [reg],
   );
 
   const commitPoints = useCallback(
     (points) => {
+      if (!regionAlive(reg)) return;
       const { waWidth: w, waHeight: h, frame: f } = commitContextRef.current;
 
       if (!w || !h) return;
@@ -247,10 +275,42 @@ const VideoVectorPure = ({
       const percentPoints = pixelToPercentVertices(points, w, h);
       const currentShape = reg.getShape(f);
 
-      if (currentShape?.vertices && verticesMatch(currentShape.vertices, percentPoints)) return;
+      if (currentShape?.vertices && verticesMatch(currentShape.vertices, percentPoints)) {
+        if (isFaivvVectorEditDebugEnabled()) {
+          logFaivvVectorEdit("VideoVector.commit.skip-same", {
+            ...regionDebugMeta(reg),
+            frame: f,
+            vertices: summarizeVertices(percentPoints),
+          });
+        }
+        return;
+      }
+
+      if (isFaivvVectorEditDebugEnabled()) {
+        const data = {
+          vertices: percentPoints,
+          closed: currentShape?.closed ?? false,
+        };
+        const merged = previewMergedKeyframe(currentShape, data, f);
+        logFaivvVectorEdit("VideoVector.commit", {
+          ...regionDebugMeta(reg),
+          frame: f,
+          // VideoVectorShape → updateShape({vertices}) 만 전달. keypoints는 merge 잔존.
+          kpVsVert: diffKeypointsVsVertices(currentShape, merged),
+          before: summarizeKeyframe(currentShape),
+          afterVertices: summarizeVertices(percentPoints),
+          hint:
+            "실제 region: VideoPoseRegion|VideoVectorRegion (VectorRegion=image 전용). " +
+            "envelope: data.lsfResult.value.sequence[].keypoints|vertices",
+        });
+      }
 
       lastCommittedRef.current = { percent: percentPoints, pixels: points };
-      reg.updateShape({ vertices: percentPoints, closed: currentShape?.closed ?? false }, f);
+      try {
+        reg.updateShape({ vertices: percentPoints, closed: currentShape?.closed ?? false }, f);
+      } catch (e) {
+        /* region detached mid-drag */
+      }
     },
     [reg],
   );
@@ -268,9 +328,14 @@ const VideoVectorPure = ({
   );
 
   const handleTransformStart = useCallback(() => {
+    if (!regionAlive(reg)) return;
     isDraggingRef.current = true;
     latestDragPixelsRef.current = null;
-    reg.annotation?.history?.freeze?.();
+    try {
+      reg.annotation?.history?.freeze?.();
+    } catch (e) {
+      /* detached */
+    }
   }, [reg]);
 
   const handleTransformEnd = useCallback(() => {
@@ -279,7 +344,12 @@ const VideoVectorPure = ({
       commitPoints(latestDragPixelsRef.current);
       latestDragPixelsRef.current = null;
     }
-    reg.annotation?.history?.unfreeze?.();
+    if (!regionAlive(reg)) return;
+    try {
+      reg.annotation?.history?.unfreeze?.();
+    } catch (e) {
+      /* detached */
+    }
   }, [commitPoints, reg]);
 
   // Clear dragPixels once MobX store has propagated the committed values.
@@ -287,27 +357,32 @@ const VideoVectorPure = ({
   // causes the shape to flash to old positions before MobX observer re-renders.
   useEffect(() => {
     if (dragPixels && !isDraggingRef.current && lastCommittedRef.current) {
-      if (box.vertices && verticesMatch(box.vertices, lastCommittedRef.current.percent)) {
+      if (box?.vertices && verticesMatch(box.vertices, lastCommittedRef.current.percent)) {
         setDragPixels(null);
       }
     }
-  }, [dragPixels, box.vertices]);
+  }, [dragPixels, box?.vertices]);
 
   const handlePathClosedChange = useCallback(
     (isClosed) => {
+      if (!regionAlive(reg)) return;
       const shape = reg.getShape(frame);
 
       if (!shape) return;
       if (shape.closed === isClosed) return;
 
-      reg.updateShape({ vertices: shape.vertices, closed: isClosed }, frame);
+      try {
+        reg.updateShape({ vertices: shape.vertices, closed: isClosed }, frame);
+      } catch (e) {
+        /* detached */
+      }
     },
     [reg, frame],
   );
 
   const handleFinish = useCallback(
     (e) => {
-      if (isReadOnly) return;
+      if (!regionAlive(reg) || isReadOnly) return;
       e.evt.stopPropagation();
       e.evt.preventDefault();
 
@@ -328,6 +403,7 @@ const VideoVectorPure = ({
 
   const handleRegionClick = useCallback(
     (e) => {
+      if (!regionAlive(reg)) return;
       if (e.evt.defaultPrevented) return;
       if (reg.isReadOnly()) return;
       if (reg.isDrawing) return;
@@ -346,20 +422,38 @@ const VideoVectorPure = ({
       if (typeof onClickProp === "function") {
         onClickProp(e);
       } else {
-        reg.setHighlight(false);
-        reg.onClickRegion(e);
+        try {
+          reg.setHighlight(false);
+          reg.onClickRegion(e);
+        } catch (err) {
+          /* detached */
+        }
       }
     },
     [reg, frame, onClickProp],
   );
 
+  // 저장·rehydrate로 area가 교체되면 구 observer가 한 틱 남을 수 있음 — dead node 렌더 금지
+  if (!alive) return null;
+
   return (
     <Group listening={listening} opacity={reg.hidden ? 0 : 1}>
+      {/* 라벨을 점 아래에 두어 tip/grip 히트를 가리지 않음 */}
+      {pixelVertices.length > 0 && (
+        <LabelOnVideoBbox
+          reg={reg}
+          box={bbox}
+          scale={waScale}
+          color={style.strokeColor}
+          strokeWidth={style.strokeWidth}
+          adjacent
+        />
+      )}
       <KonvaVector
         key={reg.id}
         ref={handleRef}
         initialPoints={Array.from(pixelVertices)}
-        closed={box.closed}
+        closed={box?.closed}
         width={waWidth}
         height={waHeight}
         scaleX={1}
@@ -395,23 +489,22 @@ const VideoVectorPure = ({
         onPathClosedChange={handlePathClosedChange}
         onClick={handleRegionClick}
         onMouseEnter={() => {
-          reg.setHighlight(true);
+          if (!regionAlive(reg)) return;
+          try {
+            reg.setHighlight(true);
+          } catch (e) {
+            /* detached */
+          }
         }}
         onMouseLeave={() => {
-          reg.setHighlight(false);
+          if (!regionAlive(reg)) return;
+          try {
+            reg.setHighlight(false);
+          } catch (e) {
+            /* detached */
+          }
         }}
       />
-
-      {pixelVertices.length > 0 && (
-        <LabelOnVideoBbox
-          reg={reg}
-          box={bbox}
-          scale={waScale}
-          color={style.strokeColor}
-          strokeWidth={style.strokeWidth}
-          adjacent
-        />
-      )}
     </Group>
   );
 };

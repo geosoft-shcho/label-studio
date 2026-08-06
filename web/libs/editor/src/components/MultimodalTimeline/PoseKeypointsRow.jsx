@@ -1,7 +1,8 @@
 /**
  * Frames `lsf-keypoints` 와 동일한 lifespan+point UI를 초 좌표(pxPerSec)로 그린다.
  * TimelineContext(step/frame)에 의존하지 않는다.
- * 설계-20 §9: laneKind(source) / clip.meta.confidence(UI 점수) 로 시각 구분.
+ * 설계-20 §9: laneKind(source) / clip.meta.confidence(UI 점수) /
+ * clip.meta.reviewed(검수) 로 시각 구분.
  */
 import { useMemo } from "react";
 import PropTypes from "prop-types";
@@ -78,13 +79,14 @@ function PoseKeypointsRow({
         clip.meta?.confidence != null && Number.isFinite(Number(clip.meta.confidence))
           ? Number(clip.meta.confidence)
           : null;
-      return { clip, points, selected, conf };
+      const reviewed = clip.meta?.reviewed === true;
+      return { clip, points, selected, conf, reviewed };
     });
   }, [clips, visibleMin, visibleMax, pxPerSec, selectedId]);
 
   return (
     <div className={styles.keypointsTrack}>
-      {spans.map(({ clip, points, selected, conf }) => {
+      {spans.map(({ clip, points, selected, conf, reviewed }) => {
         const width = Math.max((clip.end - clip.start) * pxPerSec, 4);
         const left = clip.start * pxPerSec;
         const color =
@@ -99,6 +101,7 @@ function PoseKeypointsRow({
         const titleParts = [clip.label || clip.meta?.laneLabel || ""];
         if (isAutoLane) titleParts.unshift("AI");
         if (confText) titleParts.push(`conf ${confText}`);
+        if (reviewed) titleParts.push("검수");
         const title = titleParts.filter(Boolean).join(" · ");
 
         return (
@@ -107,6 +110,7 @@ function PoseKeypointsRow({
             className={[
               styles.keypointsLifespan,
               isAutoLane ? styles.keypointsLifespanAuto : styles.keypointsLifespanManual,
+              reviewed ? styles.keypointsLifespanReviewed : "",
               selected ? styles.keypointsLifespanSelected : "",
             ]
               .filter(Boolean)
@@ -123,6 +127,11 @@ function PoseKeypointsRow({
             {isAutoLane ? (
               <span className={styles.keypointsAiBadge} aria-hidden="true">
                 AI{confText ? ` ${confText}` : ""}
+                {reviewed ? " · 검수" : ""}
+              </span>
+            ) : reviewed ? (
+              <span className={styles.keypointsReviewedBadge} aria-hidden="true">
+                검수
               </span>
             ) : null}
             {points.map((t) => {

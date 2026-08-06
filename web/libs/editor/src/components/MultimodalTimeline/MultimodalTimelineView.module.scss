@@ -230,6 +230,16 @@
   border: 1px dashed color-mix(in srgb, var(--lifespan-color, var(--grape_500)) 85%, transparent);
 }
 
+.keypointsLifespanReviewed {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--kale_600, #3a7d44) 80%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--kale_500, #4caf50) 22%,
+    color-mix(in srgb, var(--lifespan-color, var(--grape_500)) 35%, transparent)
+  );
+}
+
 .keypointsLifespanSelected {
   box-shadow: 0 0 0 1px var(--grape_500);
 }
@@ -251,6 +261,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.keypointsReviewedBadge {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  z-index: 2;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--kale_100, #e8f5e9) 90%, transparent);
+  color: var(--kale_700, #2e7d32);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  pointer-events: none;
 }
 
 .keypointsPoint {

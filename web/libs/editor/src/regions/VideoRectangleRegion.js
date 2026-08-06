@@ -8,6 +8,8 @@ import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
 import { keypointsAtFrame as resolveKeypointsAtFrame } from "./videoKeypoints";
 import { mediaBboxToCanvas, mediaPercentToCanvas } from "../tags/object/Video/mediaToCanvas";
+import { logRegionShapeUpdate } from "../utils/faivvVectorEditDebug";
+import { markRegionReviewedOnEdit } from "../utils/segmentSource";
 
 const Model = types
   .model("VideoRectangleRegionModel", {
@@ -165,6 +167,12 @@ const Model = types
   }))
   .actions((self) => ({
     updateShape(data, frame) {
+      const beforeKf =
+        self.sequence.find((item) => item.frame === frame) ||
+        self.closestKeypoint?.(frame) ||
+        null;
+      logRegionShapeUpdate(self, frame, data, beforeKf);
+
       const newItem = {
         ...data,
         frame,
@@ -191,6 +199,7 @@ const Model = types
         ];
       }
 
+      markRegionReviewedOnEdit(self);
     },
   }));
 

@@ -6,6 +6,7 @@ import { getRoot } from "mobx-state-tree";
 import Utils from "../../utils";
 import Constants from "../../core/Constants";
 import { ImageViewContext } from "./ImageViewContext";
+import { regionIsAutoSource, regionReviewed } from "../../utils/segmentSource";
 
 const NON_ADJACENT_CORNER_RADIUS = 4;
 const ADJACENT_CORNER_RADIUS = [4, 4, 0, 0];
@@ -29,6 +30,8 @@ const LabelOnBbox = ({
   onMouseLeaveLabel,
   adjacent = false,
   isTexting = false,
+  /** false면 tip/grip 등 하위 편집이 라벨에 가리지 않음 (영상 provenance 뱃지). */
+  listening = true,
 }) => {
   const fontSize = 13;
   const height = 20;
@@ -43,6 +46,7 @@ const LabelOnBbox = ({
   const textMaxWidth = Math.max(0, maxWidth * zoomScale - horizontalPaddings - scoreSpace);
   const isSticking = !!textMaxWidth;
   const { suggestion } = useContext(ImageViewContext) ?? {};
+  const labelListening = listening && !suggestion;
 
   const width = useMemo(() => {
     if (!showLabels || !textEl || !maxWidth) return null;
@@ -98,12 +102,13 @@ const LabelOnBbox = ({
   if (!showLabels) return null;
 
   return (
-    <Group strokeScaleEnabled={false} x={x} y={y} rotation={rotation}>
+    <Group strokeScaleEnabled={false} x={x} y={y} rotation={rotation} listening={labelListening}>
       {hasScore && (
         <Label
           y={-height * scale}
           scaleX={scale}
           scaleY={scale}
+          listening={labelListening}
           onClick={() => {
             return false;
           }}
@@ -124,10 +129,10 @@ const LabelOnBbox = ({
         y={-height * scale}
         scaleX={scale}
         scaleY={scale}
-        onClick={onClickLabel}
-        onMouseEnter={onClickLabel ? onMouseEnterLabel : null}
-        onMouseLeave={onClickLabel ? onMouseLeaveLabel : null}
-        listening={!suggestion}
+        onClick={labelListening ? onClickLabel : undefined}
+        onMouseEnter={labelListening && onClickLabel ? onMouseEnterLabel : null}
+        onMouseLeave={labelListening && onClickLabel ? onMouseLeaveLabel : null}
+        listening={labelListening}
       >
         <Tag fill={color} cornerRadius={4} sceneFunc={tagSceneFunc} offsetX={paddingLeft} />
         <Text
@@ -151,6 +156,7 @@ const LabelOnBbox = ({
         scaleY={scale}
         fill={Constants.SHOW_LABEL_FILL}
         data={isTexting ? OCR_PATH : TAG_PATH}
+        listening={false}
       />
     </Group>
   );
@@ -301,17 +307,41 @@ const LabelOnKP = observer(({ item, color }) => {
 
 const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjacent = false }) => {
   if (!reg?.store) return null;
+  if (!box || box.x == null || box.y == null) return null;
 
   const isTexting = !!reg.texting;
-  const labelText = reg.getLabelText(",");
+  const isAuto = regionIsAutoSource(reg);
+  const reviewed = regionReviewed(reg);
+  const classLabel = (reg.getLabelText?.(",") || "").trim();
   // 설계-20: LayerSegment.confidence → score 뱃지 (0 포함)
   const conf =
     typeof reg.inferenceConfidence === "number"
       ? reg.inferenceConfidence
       : reg.confidence != null && Number.isFinite(Number(reg.confidence))
         ? Number(reg.confidence)
-        : reg.score;
-  const showLabels = reg.store.settings?.showLabels;
+        : reg.score != null && Number.isFinite(Number(reg.score))
+          ? Number(reg.score)
+          : null;
+
+  // Timeline lifespan은 좁아 잘림 → 영상 vertices/bbox AABB 옆에 AI · 검수 표시
+  const textParts = [];
+  if (isAuto) textParts.push("AI");
+  if (classLabel) textParts.push(classLabel);
+  if (reviewed) textParts.push("검수");
+  const labelText = textParts.join(" · ");
+
+  const settingsShow = !!reg.store.settings?.showLabels;
+  const hasProvenance = reviewed || (isAuto && conf != null);
+  const show =
+    settingsShow || hasProvenance || (isAuto && labelText.length > 0);
+  if (!show) return null;
+  if (!labelText && conf == null) return null;
+
+  // tip/grip AABB가 좁아도 문구가 보이도록 최소 폭(화면 px → 미디어 %)
+  const zoom = scale > 0 ? scale : 1;
+  const minWidthPct = 160 / zoom;
+  const boxW = Number(box.width) || 0;
+  const effectiveMaxWidth = Math.max(boxW + (Number(strokeWidth) || 0), minWidthPct);
 
   return (
     <LabelOnBbox
@@ -319,14 +349,16 @@ const LabelOnVideoBbox = observer(({ reg, box, color, scale, strokeWidth, adjace
       y={box.y}
       rotation={box.rotation}
       isTexting={isTexting}
-      text={labelText}
+      text={labelText || (isAuto ? "AI" : classLabel)}
       score={conf}
-      showLabels={showLabels}
+      showLabels={true}
       zoomScale={scale}
-      color={color}
-      maxWidth={box.width + strokeWidth}
+      color={reviewed ? "#3a7d44" : color}
+      maxWidth={effectiveMaxWidth}
       adjacent={adjacent}
-      onClickLabel={reg.onClickRegion}
+      // 표시만 — tip/grip·bbox 드래그를 가로채지 않음
+      listening={false}
+      onClickLabel={undefined}
     />
   );
 });

@@ -67,9 +67,48 @@ export function regionReviewed(region) {
     const results = region.results || [];
     for (const r of results) {
       if (normalizeReviewed(r?.value?.reviewed)) return true;
+      if (normalizeReviewed(r?.reviewed)) return true;
     }
   } catch (e2) {
     /* noop */
   }
   return false;
+}
+
+/**
+ * AI(source=auto) geometry 편집 시 검수 플래그.
+ * Timeline PoseKeypointsRow / serialize 가 region.reviewed 를 본다.
+ */
+export function markRegionReviewedOnEdit(region) {
+  if (!region || !regionIsAutoSource(region)) return false;
+  try {
+    region.reviewed = true;
+  } catch (e) {
+    /* noop */
+  }
+  try {
+    const results = region.results || [];
+    for (const r of results) {
+      if (!r) continue;
+      try {
+        if (typeof r.setReviewed === "function") {
+          r.setReviewed(true);
+        } else if ("reviewed" in r) {
+          r.reviewed = true;
+        }
+      } catch (eR) {
+        /* noop */
+      }
+      try {
+        if (r.value && typeof r.value === "object") {
+          r.value.reviewed = true;
+        }
+      } catch (eV) {
+        /* noop */
+      }
+    }
+  } catch (e2) {
+    /* noop */
+  }
+  return true;
 }

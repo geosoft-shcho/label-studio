@@ -1,10 +1,17 @@
-import { types } from "mobx-state-tree";
+import { types, isAlive } from "mobx-state-tree";
 
 import NormalizationMixin from "../mixins/Normalization";
 import RegionsMixin from "../mixins/Regions";
 import Registry from "../core/Registry";
 import { AreaMixin } from "../mixins/AreaMixin";
 import { VideoRegion } from "./VideoRegion";
+import { logRegionShapeUpdate } from "../utils/faivvVectorEditDebug";
+import { markRegionReviewedOnEdit } from "../utils/segmentSource";
+
+/**
+ * VideoVectorRegion — 수동 `<VideoVectorLabels name="video_vector">`.
+ * AI box/pose tip/grip 는 VideoPoseRegion (VideoVectorShape 공유).
+ */
 
 /**
  * Interpolate a single vertex between two keyframes.
@@ -131,10 +138,17 @@ const Model = types
   }))
   .actions((self) => ({
     setVectorRef(ref) {
+      if (!isAlive(self)) return;
       self.vectorRef = ref;
     },
 
     updateShape(data, frame) {
+      const beforeKf =
+        self.sequence.find((item) => item.frame === frame) ||
+        self.closestKeypoint?.(frame) ||
+        null;
+      logRegionShapeUpdate(self, frame, data, beforeKf);
+
       const newItem = {
         ...data,
         frame,
@@ -160,6 +174,8 @@ const Model = types
           ...self.sequence.slice(index + (self.sequence[index].frame === frame)),
         ];
       }
+
+      markRegionReviewedOnEdit(self);
     },
 
     startPoint(x, y) {

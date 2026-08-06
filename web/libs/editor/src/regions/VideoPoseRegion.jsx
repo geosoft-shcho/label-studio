@@ -1,4 +1,4 @@
-import { types } from "mobx-state-tree";
+import { types, isAlive } from "mobx-state-tree";
 
 import NormalizationMixin from "../mixins/Normalization";
 import RegionsMixin from "../mixins/Regions";
@@ -7,6 +7,8 @@ import { AreaMixin } from "../mixins/AreaMixin";
 import { onlyProps, VideoRegion } from "./VideoRegion";
 import { interpolateProp } from "../utils/props";
 import { mediaBboxToCanvas } from "../tags/object/Video/mediaToCanvas";
+import { logRegionShapeUpdate } from "../utils/faivvVectorEditDebug";
+import { markRegionReviewedOnEdit } from "../utils/segmentSource";
 
 const BBOX_PROPS = ["x", "y", "width", "height", "rotation"];
 
@@ -50,6 +52,8 @@ const interpolateVertices = (prevKeyframe, nextKeyframe, frame) => {
 
 /**
  * FAIVV VideoPose — bbox + skeleton vertices in one video region.
+ * AI torch tip/grip 편집의 실제 MST region (Registry detect: vertices|bbox).
+ * UI: VideoRegions → VideoVectorShape → updateShape({vertices}) — keypoints는 merge 잔존 가능.
  */
 const Model = types
   .model("VideoPoseRegionModel", {
@@ -225,6 +229,8 @@ const Model = types
   }))
   .actions((self) => ({
     setVectorRef(ref) {
+      // VideoVector handleRef가 unmount/rehydrate 직후에도 호출될 수 있음
+      if (!isAlive(self)) return;
       self.vectorRef = ref;
     },
 
@@ -246,6 +252,12 @@ const Model = types
     },
 
     updateShape(data, frame) {
+      const beforeKf =
+        self.sequence.find((item) => item.frame === frame) ||
+        self.closestKeypoint?.(frame) ||
+        null;
+      logRegionShapeUpdate(self, frame, data, beforeKf);
+
       const newItem = {
         ...data,
         frame,
@@ -272,6 +284,7 @@ const Model = types
         ];
       }
 
+      markRegionReviewedOnEdit(self);
     },
 
     startPoint(x, y) {

@@ -1,7 +1,7 @@
 import chroma from "chroma-js";
 import { clamp } from "lodash";
 import { observer } from "mobx-react";
-import { getParentOfType } from "mobx-state-tree";
+import { getParentOfType, isAlive } from "mobx-state-tree";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import Constants from "../../../core/Constants";
@@ -381,38 +381,48 @@ const VideoRegionsPure = ({
 const RegionsLayer = observer(({ regions, item, locked, isDrawing, workinAreaCoordinates, stageRef, onDragMove }) => {
   return (
     <>
-      {regions.map((reg) => (
-        <Shape
-          id={reg.id}
-          key={reg.id}
-          reg={reg}
-          frame={item.frame}
-          workingArea={workinAreaCoordinates}
-          draggable={!reg.isReadOnly() && !isDrawing && !locked}
-          selected={reg.selected || reg.inSelection}
-          listening={!reg.locked && !reg.hidden}
-          stageRef={stageRef}
-          onDragMove={onDragMove}
-        />
-      ))}
+      {regions.map((reg) => {
+        if (!reg || !isAlive(reg)) return null;
+        return (
+          <Shape
+            id={reg.id}
+            key={reg.id}
+            reg={reg}
+            frame={item.frame}
+            workingArea={workinAreaCoordinates}
+            draggable={!reg.isReadOnly() && !isDrawing && !locked}
+            selected={reg.selected || reg.inSelection}
+            listening={!reg.locked && !reg.hidden}
+            stageRef={stageRef}
+            onDragMove={onDragMove}
+          />
+        );
+      })}
     </>
   );
 });
 
 const Shape = observer(({ reg, frame, stageRef, ...props }) => {
+  if (!reg || !isAlive(reg)) return null;
+
   const box = reg.getShape(frame);
 
   if (!reg.isInLifespan(frame) || !box) return null;
 
   const handleClick = (e) => {
+    if (!isAlive(reg)) return;
     const annotation = getParentOfType(reg, Annotation);
 
     if (annotation && annotation.isLinkingMode) {
       stageRef.current.container().style.cursor = Constants.DEFAULT_CURSOR;
     }
 
-    reg.setHighlight(false);
-    reg.onClickRegion(e);
+    try {
+      reg.setHighlight(false);
+      reg.onClickRegion(e);
+    } catch (err) {
+      /* detached */
+    }
   };
 
   if (reg.type === "videoposeregion") {

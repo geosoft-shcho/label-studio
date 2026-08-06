@@ -10,6 +10,7 @@ import { isAlive } from "mobx-state-tree";
 
 import {
   regionIsAutoSource,
+  regionReviewed,
   regionSegmentSource,
 } from "../../../utils/segmentSource";
 import {
@@ -850,6 +851,7 @@ export function collectAllLaneClips(item) {
     const isAuto = isAutoTaggedVideoRegion(clip.region);
     const conf = regionConfidenceValue(clip.region);
     const segSource = regionSegmentSource(clip.region);
+    const reviewed = regionReviewed(clip.region);
     if (isAuto) {
       poseObjectClips.push({
         ...clip,
@@ -860,6 +862,7 @@ export function collectAllLaneClips(item) {
           segmentSource: segSource,
           hasConfidence: conf != null,
           confidence: conf,
+          reviewed,
         },
       });
     } else {
@@ -872,6 +875,7 @@ export function collectAllLaneClips(item) {
           segmentSource: segSource,
           hasConfidence: false,
           confidence: null,
+          reviewed,
         },
       });
     }
