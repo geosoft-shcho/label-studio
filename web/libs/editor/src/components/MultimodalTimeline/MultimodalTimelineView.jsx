@@ -380,11 +380,21 @@ function timelineRowsFromClips(laneClips) {
       const kind = key.split(":")[0];
       const firstClip = clips[0];
       const segmentId = String(firstClip?.meta?.segmentId || "").trim();
+      // stt: 단일 레인 고정 라벨. audio_manual instance 행만 Labels laneLabel.
+      // transcript 본문은 clip.label / subtitlePreview 에만.
+      const laneTitle =
+        kind === "stt"
+          ? LANE_LABELS.stt
+          : kind === "audio_manual"
+            ? firstClip?.meta?.laneLabel ||
+              (firstClip?.meta?.classLabel ? `수동 · ${firstClip.meta.classLabel}` : null) ||
+              LANE_LABELS.audio_manual
+            : firstClip?.meta?.laneLabel || LANE_LABELS[kind] || kind;
       return {
         key,
         kind,
         clips,
-        label: firstClip?.meta?.laneLabel || LANE_LABELS[kind] || kind,
+        label: laneTitle,
         start: firstClip?.start ?? 0,
         segmentId,
         regionId: firstClip?.regionId || "",

@@ -37,7 +37,7 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 | lane 키 | UI 라벨 (`source · kind`) | 데이터 출처 | 비고 |
 |---------|---------------------------|-------------|------|
-| `stt` | 자동 · 자막 / `자동 · {class}` (+AI 뱃지) | `audioSegmentsFrom` + transcript + **source=auto** | instance 행 전개 |
+| `stt` | 자동 · 자막 (+AI 뱃지) | `audioSegmentsFrom` + transcript + **source=auto** | **단일 레인**, 구간별 transcript clip |
 | `audio_manual` | 수동 · 자막 / `수동 · {class}` | 동일 캐리어 + **source=manual** | instance 행; 빈 트랙 1행(드래그) |
 | `object` | 수동 · 객체 / `수동 · {class}` | `videoObjectsFrom` + **source=manual** | instance 행 확장 |
 | `pose_object` | 자동 · 객체 / `자동 · {class}` (+AI) | `poseObjectsFrom` + **source=auto** | instance 행 확장 |
@@ -60,12 +60,19 @@ multi-span clip은 같은 행에 유지한다. 같은 Labels 값(예: Person)이
 행 라벨에 **LayerSegment.id**(`seg_*` 짧은 표기, 예: `seg_a7a16f9b`)를 붙여
 구분한다. MST `region.id`로 레인을 키잉하지 않는다.
 
-`stt` / `audio_manual`도 동일하게 **데이터가 있을 때만** instance 행으로 전개한다
-(`subtitleLaneEntries`): `stt:<segmentId>` / `audio_manual:<segmentId>`,
-행 라벨 `자동 · {classLabel}` / `수동 · {classLabel}` (`audio_segments` Labels;
-없으면 `자막`). 동일 classLabel 다건이면 seg id suffix. **빈 자동 자막 행은 만들지
-않는다.** 수동 자막 클립이 하나도 없으면 신규 드래그용 `audio_manual` 빈 트랙 1행만
-둔다 (`수동 · 자막`).
+`stt`(AI 자동 자막)는 **object와 달리 단일 레인**이다. `laneClips.stt` 하나에
+auto clip을 모두 넣고, 왼쪽 라벨은 고정 `자동 · 자막`(+AI). 구간별 **transcript 본문**은
+트랙 clip 글자·tooltip에만 표시한다. `subtitleLaneEntries` / `stt:<segmentId>` 전개 금지.
+
+`audio_manual`만 instance 행 전개(`subtitleLaneEntries`): `audio_manual:<segmentId>`,
+행 라벨 `수동 · {classLabel}` — **해당 segment에 저장된 Labels만** (`speaker_1` 등).
+팔레트 `selectedValues` / 재선택으로 labeling이 바뀌어도 **laneLabelsColumn title은
+처음 확정 Labels를 유지** (`_faivvSavedClassLabel` / video `_faivvSavedLaneLabel`).
+transcript는 clip에만. 동일 classLabel 다건이면 seg id suffix. 수동 클립이 없으면
+드래그용 빈 트랙 1행 (`수동 · 자막`).
+
+`object` / `pose_object` laneLabelsColumn title도 동일: **저장된 Labels** 기준
+(`videoRegionLabel` → `_faivvSavedLaneLabel`). 팔레트만 바꿔도 기존 행 제목 불변.
 
 표시는 박스 clip이 아니라 `PoseKeypointsRow`(Frames `lsf-keypoints`와 동일 개념):
 lifespan 막대 + `sequence.frame/fps` 키프레임 점. `time` 필드는 쓰지 않는다.

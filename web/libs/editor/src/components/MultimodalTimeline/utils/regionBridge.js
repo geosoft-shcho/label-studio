@@ -104,40 +104,53 @@ export function regionBelongsToLabelsControl(region, control) {
 
 function regionLabelText(region) {
   if (!regionIsUsable(region)) return "";
-  try {
-    if (region.labeling?.mainValue?.length) {
-      return String(region.labeling.mainValue[0]);
-    }
-    const results = safeRegionResults(region);
-    for (let i = 0; i < results.length; i++) {
-      const v = results[i]?.value;
-      if (v?.labels?.length) return String(v.labels[0]);
-    }
-  } catch (e) {
-    /* noop */
-  }
-  return "";
+  const list = regionLabelsList(region);
+  return list[0] || "";
 }
 
-/** Labels control 결과에서 region 의 라벨 텍스트를 모은다 (복수 라벨은 ", " 연결). */
+/**
+ * Labels control 결과에서 region 의 라벨 텍스트를 모은다 (복수 라벨은 ", " 연결).
+ * laneLabelsColumn 용: 팔레트 재선택으로 labeling.mainValue 가 바뀌어도
+ * 처음 저장된 Labels(`_faivvSavedClassLabel`)를 유지한다.
+ */
 function regionLabelsList(region) {
   const out = [];
   const add = (raw) => {
     const text = String(raw || "").trim();
     if (text && !out.includes(text)) out.push(text);
   };
+
   try {
-    const main = region?.labeling?.mainValue;
-    if (Array.isArray(main)) main.forEach(add);
-    else if (typeof main === "string") add(main);
+    const frozen = region?._faivvSavedClassLabel;
+    if (typeof frozen === "string" && frozen.trim()) return [frozen.trim()];
   } catch (e) {
     /* noop */
   }
+
+  // value.labels 만 — TextArea mainValue(본문)·팔레트 selectedValues 금지.
   safeRegionResults(region).forEach((r) => {
-    const labels = r?.value?.labels ?? r?.mainValue;
+    const labels = r?.value?.labels;
     if (Array.isArray(labels)) labels.forEach(add);
-    else if (typeof labels === "string") add(labels);
   });
+
+  // 최초 1회: results 비어 있을 때만 labeling 폴백 후 freeze.
+  if (!out.length) {
+    try {
+      const main = region?.labeling?.mainValue;
+      if (Array.isArray(main)) main.forEach(add);
+      else if (typeof main === "string") add(main);
+    } catch (e2) {
+      /* noop */
+    }
+  }
+
+  if (out.length) {
+    try {
+      region._faivvSavedClassLabel = out.join(", ");
+    } catch (e3) {
+      /* noop */
+    }
+  }
   return out;
 }
 
@@ -330,8 +343,8 @@ function objectSpanSec(region, fps) {
 /**
  * STT / 수동 자막 레인 — transcript / audio_segments.
  * 설계-20 §9: LayerSegment.source=auto → stt, manual → audio_manual.
- * clip 글자는 **자막 본문**만 표시 (Labels speaker 이름은 쓰지 않음).
- * meta.classLabel 은 레인 제목용 (`audio_segments` Labels).
+ * clip 글자 = 자막 본문(transcript). laneLabel/classLabel = audio_segments Labels만
+ * (본문 text를 lane 제목에 넣지 않음).
  */
 export function collectSubtitleLaneClips(annotation, transcriptControl, audioSegmentsControl) {
   const autoClips = [];
@@ -354,10 +367,12 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
     const conf = regionConfidenceValue(region);
     const label = truncateClipLabel(displayText);
     const lane = isAuto ? "stt" : "audio_manual";
-    const classLabel =
-      labelsTextForRegion(annotation, audioSegmentsControl, region) ||
-      regionLabelText(region) ||
-      "자막";
+    const classLabel = subtitleClassLabelOnly(
+      annotation,
+      audioSegmentsControl,
+      region,
+      displayText,
+    );
     const segmentId = audioRegionSegmentId(region);
 
     const clip = {
@@ -387,6 +402,32 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
   autoClips.sort((a, b) => a.start - b.start);
   manualClips.sort((a, b) => a.start - b.start);
   return { stt: autoClips, audio_manual: manualClips };
+}
+
+/**
+ * 레인 제목용 Labels만. transcript 본문·장문은 절대 쓰지 않는다.
+ * (예: speaker_1 — "자동 · speaker_1, 긴 자막…" 금지)
+ */
+function subtitleClassLabelOnly(annotation, audioSegmentsControl, region, displayText) {
+  const raw = String(
+    labelsTextForRegion(annotation, audioSegmentsControl, region) ||
+      regionLabelText(region) ||
+      "",
+  ).trim();
+  const caption = String(displayText || "").trim();
+  if (!raw) return "자막";
+  if (caption && raw === caption) return "자막";
+  if (raw.length > 48) return "자막";
+
+  // Labels+TextArea 혼입으로 ", " 조인된 경우 본문 조각 제거.
+  const parts = raw
+    .split(/\s*,\s*/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .filter((p) => !(caption && p === caption) && p.length <= 48);
+  const cleaned = parts.join(", ").trim();
+  if (!cleaned || (caption && cleaned === caption)) return "자막";
+  return cleaned;
 }
 
 export function collectAttachmentLaneClips(attachmentsControl) {
@@ -797,8 +838,9 @@ function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
 }
 
 /**
- * 자막 lane instance 행 — object/pose_object 의 videoObjectLaneEntries 와 대칭.
- * 클립이 있을 때만 행을 만든다. 행 키: `stt:{segmentId}` / `audio_manual:{segmentId}`.
+ * 수동 자막(`audio_manual`) instance 행 — object 의 videoObjectLaneEntries 와 대칭.
+ * `stt` 는 collectAllLaneClips 에서 단일 레인으로 두므로 여기 쓰지 않음.
+ * 행 키: `audio_manual:{segmentId}`. laneLabel = `{source} · {Labels}` 만.
  */
 function subtitleLaneEntries(clips, laneKind, sourceLabel) {
   if (!Array.isArray(clips) || !clips.length) return [];
@@ -816,10 +858,11 @@ function subtitleLaneEntries(clips, laneKind, sourceLabel) {
 
   const rows = [...bySegment.entries()].map(([segmentId, segmentClips]) => {
     segmentClips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+    const classLabel = String(segmentClips[0]?.meta?.classLabel || "자막").trim() || "자막";
     return {
       segmentId,
       clips: segmentClips,
-      classLabel: segmentClips[0]?.meta?.classLabel || "자막",
+      classLabel,
       start: segmentClips[0]?.start ?? 0,
     };
   });
@@ -833,12 +876,14 @@ function subtitleLaneEntries(clips, laneKind, sourceLabel) {
   return rows.map((row) => {
     const idSuffix =
       labelCounts.get(row.classLabel) > 1 ? ` · ${shortSegmentId(row.segmentId)}` : "";
+    // Labels만. clip.label / subtitlePreview(본문)는 여기에 넣지 않음.
     const laneLabel = `${sourceLabel} · ${row.classLabel}${idSuffix}`;
     row.clips.forEach((clip) => {
       clip.meta = {
         ...clip.meta,
         laneKind,
         laneLabel,
+        classLabel: row.classLabel,
         segmentId: row.segmentId,
       };
     });
@@ -975,10 +1020,8 @@ export function collectAllLaneClips(item) {
         laneClips[laneKey] = clips;
       });
     } else if (lower === "stt") {
-      // 자동 자막: 데이터 있을 때만 instance 행 (빈 행 금지).
-      subtitleLaneEntries(subtitleLanes.stt || [], "stt", "자동").forEach(([laneKey, clips]) => {
-        laneClips[laneKey] = clips;
-      });
+      // 자동 자막: 단일 레인. 구간별 transcript clip 을 한 트랙에 배치 (instance 전개 금지).
+      laneClips.stt = subtitleLanes.stt || [];
     } else if (lower === "audio_manual") {
       const manualEntries = subtitleLaneEntries(
         subtitleLanes.audio_manual || [],

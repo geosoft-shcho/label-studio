@@ -131,7 +131,7 @@
 }
 
 .lane {
-  min-height: 28px;
+  min-height: 24px;
   border-bottom: 1px solid var(--sand_200);
 }
 
@@ -140,13 +140,16 @@
 }
 
 .laneLabel {
-  height: 28px;
-  min-height: 28px;
-  padding: 6px 8px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
   color: var(--sand_700);
+  font-size: 11px;
   font-weight: 500;
+  line-height: 24px;
   display: flex;
   align-items: center;
+  gap: 4px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -160,7 +163,7 @@
 
 .laneTrack {
   position: relative;
-  min-height: 28px;
+  min-height: 24px;
   background: var(--sand_0);
 }
 
@@ -173,15 +176,9 @@
   min-height: 24px;
 }
 
+/* object/pose — JSX 클래스 유지. 크기·폰트는 .laneLabel 공통 */
 .laneLabelKeypoints {
-  height: 24px;
-  min-height: 24px;
-  /* 세로 padding 이 height 24 안에서 텍스트를 잘라내지 않도록 */
-  padding-top: 0;
-  padding-bottom: 0;
-  font-size: 11px;
-  line-height: 24px;
-  gap: 4px;
+  /* no-op: height/font on .laneLabel */
 }
 
 .laneLabelObject {

@@ -243,31 +243,60 @@ export function keyframesSecInSpan(region, startFrame, endFrame, fps) {
   return out;
 }
 
+/**
+ * laneLabelsColumn / object 행 제목용 Labels.
+ * 팔레트 클릭 시 `region.setValue` 로 labeling.mainValue 가 바뀌어도
+ * **처음 확정된(저장된) Labels** 를 유지한다 (`_faivvSavedLaneLabel`).
+ * Labels control `selectedValues()` 는 사용하지 않는다.
+ */
 export function videoRegionLabel(region) {
   if (!regionIsUsable(region)) return "Object";
+
   try {
-    if (Array.isArray(region.labels) && region.labels.length) {
-      return region.labels.filter(Boolean).join(", ");
-    }
+    const frozen = region._faivvSavedLaneLabel;
+    if (typeof frozen === "string" && frozen.trim()) return frozen.trim();
   } catch (e) {
     /* noop */
   }
 
+  let label = "";
+
+  // region-scoped results 의 labels 우선 (팔레트 selectedValues 금지).
   try {
-    if (region.labeling?.mainValue?.length) {
-      return String(region.labeling.mainValue[0]);
-    }
     const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
       const v = results[i]?.value || {};
       const names = v.videovectorlabels || v.videoposelabels || v.labels;
-      if (Array.isArray(names) && names.length) return names.filter(Boolean).join(", ");
+      if (Array.isArray(names) && names.length) {
+        label = names.filter(Boolean).join(", ");
+        break;
+      }
     }
   } catch (e) {
     /* noop */
   }
 
-  return "Object";
+  // 최초 할당 직후 results 반영 전 폴백 (한 번만 freeze에 쓰임).
+  if (!label) {
+    try {
+      if (region.labeling?.mainValue?.length) {
+        label = Array.from(region.labeling.mainValue).filter(Boolean).join(", ");
+      } else if (Array.isArray(region.labels) && region.labels.length) {
+        label = region.labels.filter(Boolean).join(", ");
+      }
+    } catch (e2) {
+      /* noop */
+    }
+  }
+
+  if (!label) return "Object";
+
+  try {
+    region._faivvSavedLaneLabel = label;
+  } catch (e3) {
+    /* noop */
+  }
+  return label;
 }
 
 export function videoRegionColor(region) {
