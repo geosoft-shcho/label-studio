@@ -37,12 +37,12 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 | lane 키 | UI 라벨 (`source · kind`) | 데이터 출처 | 비고 |
 |---------|---------------------------|-------------|------|
-| `stt` | 자동 · 자막 (+AI 뱃지) | `audioSegmentsFrom` + transcript + **source=auto** | AI 전사 |
-| `audio_manual` | 수동 · 자막 | 동일 캐리어 + **source=manual** | 사람 작성 |
+| `stt` | 자동 · 자막 / `자동 · {class}` (+AI 뱃지) | `audioSegmentsFrom` + transcript + **source=auto** | instance 행 전개 |
+| `audio_manual` | 수동 · 자막 / `수동 · {class}` | 동일 캐리어 + **source=manual** | instance 행; 빈 트랙 1행(드래그) |
 | `object` | 수동 · 객체 / `수동 · {class}` | `videoObjectsFrom` + **source=manual** | instance 행 확장 |
 | `pose_object` | 자동 · 객체 / `자동 · {class}` (+AI) | `poseObjectsFrom` + **source=auto** | instance 행 확장 |
-| `saved_attachment` | 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
-| `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**. video endpoint는 **keyframe 실구간**만 (VideoPose `isInLifespan` 전체 연장 금지). 표시용 최소 duration `max(1/fps,1s)`·min-width 32px. mapper/proto·store 불변 |
+| `saved_attachment` | 첨부 파일 | `SavedSegmentAttachments` | 서버 첨부 전용 |
+| `relation` | 관계 설정 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**. video endpoint는 **keyframe 실구간**만 (VideoPose `isInLifespan` 전체 연장 금지). 표시용 최소 duration `max(1/fps,1s)`·min-width 32px. mapper/proto·store 불변 |
 
 레인 분기는 control 이름이 아니라 **설계-20 §9 `LayerSegment.source`** 다.
 `source=auto` → `stt` / `pose_object`, `source=manual`(기본) → `audio_manual` / `object`.
@@ -59,6 +59,13 @@ hydrate 시 반영한다. MST에 `source`가 없으면 기본 manual로 수동 �
 multi-span clip은 같은 행에 유지한다. 같은 Labels 값(예: Person)이 여러 개면
 행 라벨에 **LayerSegment.id**(`seg_*` 짧은 표기, 예: `seg_a7a16f9b`)를 붙여
 구분한다. MST `region.id`로 레인을 키잉하지 않는다.
+
+`stt` / `audio_manual`도 동일하게 **데이터가 있을 때만** instance 행으로 전개한다
+(`subtitleLaneEntries`): `stt:<segmentId>` / `audio_manual:<segmentId>`,
+행 라벨 `자동 · {classLabel}` / `수동 · {classLabel}` (`audio_segments` Labels;
+없으면 `자막`). 동일 classLabel 다건이면 seg id suffix. **빈 자동 자막 행은 만들지
+않는다.** 수동 자막 클립이 하나도 없으면 신규 드래그용 `audio_manual` 빈 트랙 1행만
+둔다 (`수동 · 자막`).
 
 표시는 박스 clip이 아니라 `PoseKeypointsRow`(Frames `lsf-keypoints`와 동일 개념):
 lifespan 막대 + `sequence.frame/fps` 키프레임 점. `time` 필드는 쓰지 않는다.

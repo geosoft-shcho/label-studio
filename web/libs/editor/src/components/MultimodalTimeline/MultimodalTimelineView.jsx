@@ -21,8 +21,8 @@ const LANE_LABELS = {
   audio_manual: "수동 · 자막",
   object: "수동 · 객체",
   pose_object: "자동 · 객체",
-  saved_attachment: "첨부",
-  relation: "관계",
+  saved_attachment: "첨부 파일",
+  relation: "관계 설정",
 };
 
 const LANE_ROW_CLASS = {
@@ -41,7 +41,7 @@ const MIN_CLIP_WIDTH_PX = 6;
 const MIN_RELATION_CLIP_WIDTH_PX = 32;
 
 const HINT_MESSAGES = {
-  no_label: "오디오 구간 라벨(audio_segments)을 먼저 선택하세요.",
+  no_label: "오디오 구간 라벨 을 먼저 선택하세요.",
   too_short: "구간이 너무 짧습니다.",
   no_audio: "오디오가 로드되지 않았습니다.",
   create_failed: "구간을 만들 수 없습니다.",
@@ -294,6 +294,8 @@ function MultimodalTimelineView({ item, className }) {
                 row.kind === "object" || row.kind === "pose_object" ? styles.laneLabelKeypoints : "",
                 row.kind === "object" ? styles.laneLabelObject : "",
                 row.kind === "pose_object" ? styles.laneLabelPoseObject : "",
+                row.kind === "stt" ? styles.laneLabelStt : "",
+                row.kind === "audio_manual" ? styles.laneLabelAudioManual : "",
               ]
                 .filter(Boolean)
                 .join(" ")}

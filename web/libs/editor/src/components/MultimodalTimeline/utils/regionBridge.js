@@ -331,6 +331,7 @@ function objectSpanSec(region, fps) {
  * STT / 수동 자막 레인 — transcript / audio_segments.
  * 설계-20 §9: LayerSegment.source=auto → stt, manual → audio_manual.
  * clip 글자는 **자막 본문**만 표시 (Labels speaker 이름은 쓰지 않음).
+ * meta.classLabel 은 레인 제목용 (`audio_segments` Labels).
  */
 export function collectSubtitleLaneClips(annotation, transcriptControl, audioSegmentsControl) {
   const autoClips = [];
@@ -353,6 +354,11 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
     const conf = regionConfidenceValue(region);
     const label = truncateClipLabel(displayText);
     const lane = isAuto ? "stt" : "audio_manual";
+    const classLabel =
+      labelsTextForRegion(annotation, audioSegmentsControl, region) ||
+      regionLabelText(region) ||
+      "자막";
+    const segmentId = audioRegionSegmentId(region);
 
     const clip = {
       id: region.id,
@@ -360,6 +366,7 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
       start: region.start,
       end: region.end,
       label,
+      regionId: String(region.id || ""),
       meta: {
         subtitlePreview: displayText || label,
         laneKind: lane,
@@ -367,6 +374,8 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
         segmentSource: regionSegmentSource(region),
         hasConfidence: conf != null,
         confidence: conf,
+        classLabel,
+        segmentId,
       },
       region,
     };
@@ -619,7 +628,7 @@ export function collectRelationLaneClips(annotation, videoObject) {
         toId,
         direction,
         labels,
-        laneLabel: "관계",
+        laneLabel: "관계 설정",
         node1Id: node1?.id ?? null,
         node2Id: node2?.id ?? null,
         color: "#CC6FBE",
@@ -734,6 +743,11 @@ function videoRegionSegmentId(region) {
   }
 }
 
+/** 오디오 구간 segment id — video와 동일 우선순위 (segmentId → results → cleanId). */
+function audioRegionSegmentId(region) {
+  return videoRegionSegmentId(region);
+}
+
 function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
   // 행 키·그룹은 LayerSegment.id(`seg_*`). region MST id 로 조회하지 않는다.
   const bySegment = new Map();
@@ -770,6 +784,56 @@ function videoObjectLaneEntries(clips, laneKind, sourceLabel) {
     const idSuffix =
       labelCounts.get(row.objectLabel) > 1 ? ` · ${shortSegmentId(row.segmentId)}` : "";
     const laneLabel = `${sourceLabel} · ${row.objectLabel}${idSuffix}`;
+    row.clips.forEach((clip) => {
+      clip.meta = {
+        ...clip.meta,
+        laneKind,
+        laneLabel,
+        segmentId: row.segmentId,
+      };
+    });
+    return [`${laneKind}:${row.segmentId}`, row.clips];
+  });
+}
+
+/**
+ * 자막 lane instance 행 — object/pose_object 의 videoObjectLaneEntries 와 대칭.
+ * 클립이 있을 때만 행을 만든다. 행 키: `stt:{segmentId}` / `audio_manual:{segmentId}`.
+ */
+function subtitleLaneEntries(clips, laneKind, sourceLabel) {
+  if (!Array.isArray(clips) || !clips.length) return [];
+
+  const bySegment = new Map();
+  clips.forEach((clip) => {
+    const segmentId =
+      String(clip.meta?.segmentId || "").trim() ||
+      audioRegionSegmentId(clip.region) ||
+      String(clip.regionId || clip.region?.id || clip.id);
+    const current = bySegment.get(segmentId) || [];
+    current.push(clip);
+    bySegment.set(segmentId, current);
+  });
+
+  const rows = [...bySegment.entries()].map(([segmentId, segmentClips]) => {
+    segmentClips.sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+    return {
+      segmentId,
+      clips: segmentClips,
+      classLabel: segmentClips[0]?.meta?.classLabel || "자막",
+      start: segmentClips[0]?.start ?? 0,
+    };
+  });
+  rows.sort((a, b) => a.start - b.start || a.segmentId.localeCompare(b.segmentId));
+
+  const labelCounts = new Map();
+  rows.forEach((row) => {
+    labelCounts.set(row.classLabel, (labelCounts.get(row.classLabel) || 0) + 1);
+  });
+
+  return rows.map((row) => {
+    const idSuffix =
+      labelCounts.get(row.classLabel) > 1 ? ` · ${shortSegmentId(row.segmentId)}` : "";
+    const laneLabel = `${sourceLabel} · ${row.classLabel}${idSuffix}`;
     row.clips.forEach((clip) => {
       clip.meta = {
         ...clip.meta,
@@ -888,8 +952,6 @@ export function collectAllLaneClips(item) {
   );
 
   const lanes = {
-    stt: subtitleLanes.stt || [],
-    audio_manual: subtitleLanes.audio_manual || [],
     attachment: collectAttachmentLaneClips(item.attachmentsControl),
     saved_attachment: collectSavedAttachmentLaneClips(item.savedAttachmentsControl),
     relation: collectRelationLaneClips(annotation, item.videoObject),
@@ -912,6 +974,25 @@ export function collectAllLaneClips(item) {
       videoObjectLaneEntries(poseObjectClips, "pose_object", "자동").forEach(([laneKey, clips]) => {
         laneClips[laneKey] = clips;
       });
+    } else if (lower === "stt") {
+      // 자동 자막: 데이터 있을 때만 instance 행 (빈 행 금지).
+      subtitleLaneEntries(subtitleLanes.stt || [], "stt", "자동").forEach(([laneKey, clips]) => {
+        laneClips[laneKey] = clips;
+      });
+    } else if (lower === "audio_manual") {
+      const manualEntries = subtitleLaneEntries(
+        subtitleLanes.audio_manual || [],
+        "audio_manual",
+        "수동",
+      );
+      if (manualEntries.length) {
+        manualEntries.forEach(([laneKey, clips]) => {
+          laneClips[laneKey] = clips;
+        });
+      } else {
+        // 신규 드래그용 빈 수동 자막 트랙 1행.
+        laneClips.audio_manual = [];
+      }
     } else {
       const match =
         lanes[rawKey] != null
