@@ -3,10 +3,15 @@
  *
  * 오디오 lane:
  * - `stt` → 오디오 구간 (`audio_segments` + transcript TextArea, 수동·STT 동일 textarea)
+ * 설계-20 §9: 레인 분기는 LayerSegment.source (auto/manual). confidence는 UI 점수만.
  */
 
 import { isAlive } from "mobx-state-tree";
 
+import {
+  regionIsAutoSource,
+  regionSegmentSource,
+} from "../../../utils/segmentSource";
 import {
   collectVideoObjectRegions,
   normalizeRegionSequence,
@@ -323,7 +328,7 @@ function objectSpanSec(region, fps) {
 
 /**
  * STT / 수동 자막 레인 — transcript / audio_segments.
- * 설계-20: LayerSegment.confidence set → stt(자동), unset → audio_manual(수동).
+ * 설계-20 §9: LayerSegment.source=auto → stt, manual → audio_manual.
  * clip 글자는 **자막 본문**만 표시 (Labels speaker 이름은 쓰지 않음).
  */
 export function collectSubtitleLaneClips(annotation, transcriptControl, audioSegmentsControl) {
@@ -343,8 +348,8 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
 
     if (!displayText && !isSttCarrier) return;
 
+    const isAuto = regionIsAutoSource(region);
     const conf = regionConfidenceValue(region);
-    const isAuto = conf != null;
     const label = truncateClipLabel(displayText);
     const lane = isAuto ? "stt" : "audio_manual";
 
@@ -358,7 +363,8 @@ export function collectSubtitleLaneClips(annotation, transcriptControl, audioSeg
         subtitlePreview: displayText || label,
         laneKind: lane,
         sourceKind: isAuto ? "stt" : "manual",
-        hasConfidence: isAuto,
+        segmentSource: regionSegmentSource(region),
+        hasConfidence: conf != null,
         confidence: conf,
       },
       region,
@@ -642,7 +648,7 @@ export function collectVideoObjectLaneClips(
   const sourcePrefix = options.sourcePrefix || "";
   const sourceKind = options.sourceKind || (lane === "pose_object" ? "pose" : "manual");
   // 포즈는 실구간만 (영상 끝 연장 금지). 수동 box 는 기존 LSF Frames UX 유지.
-  // 설계-20: 자동(confidence) → last span 영상끝 연장 금지.
+  // 설계-20 §9: 자동(source=auto) → last span 영상끝 연장 금지.
   const extendLastToVideoEnd = options.extendLastToVideoEnd ?? sourceKind !== "pose";
   const fps = frameRateFromVideo(videoObject);
   const durationSec = readDurationSec(null, videoObject);
@@ -786,7 +792,7 @@ function shortSegmentId(id) {
   return s.length <= 10 ? s : s.slice(0, 10);
 }
 
-/** LayerSegment.confidence → region (설계-20). 있으면 자동 라벨링. */
+/** LayerSegment.confidence → region (설계-20 §9). UI 점수만 — 레인 분기에 쓰지 않음. */
 function regionConfidenceValue(region) {
   if (!regionIsUsable(region)) return null;
   try {
@@ -803,7 +809,7 @@ function regionConfidenceValue(region) {
   } catch (e2) {
     /* noop */
   }
-  // AudioRegion: assignRegionConfidence 가 score 에도 기록 (RegionsMixin).
+  // AudioRegion: score 미러
   try {
     const s = region.score;
     if (s != null && s !== "" && Number.isFinite(Number(s))) return Number(s);
@@ -814,16 +820,16 @@ function regionConfidenceValue(region) {
 }
 
 /**
- * 설계-20: LayerSegment.confidence set(0 포함) → 자동.
- * unset(검수/사람 편집 후 clear) → 수동. pose_box 폴백 없음.
+ * 설계-20 §9: LayerSegment.source=auto → 자동 레인.
+ * confidence set/unset으로 분기하지 않음.
  */
 function isAutoTaggedVideoRegion(region) {
-  return regionConfidenceValue(region) != null;
+  return regionIsAutoSource(region);
 }
 
 export function collectAllLaneClips(item) {
   const annotation = item.annotation;
-  // box + video_vector(수동) + pose 를 한 풀로 모은 뒤 confidence 로 수동/자동 레인 분기 (설계-20).
+  // box + video_vector(수동) + pose 를 한 풀로 모은 뒤 source 로 수동/자동 레인 분기 (설계-20 §9).
   // 수동 video_vector는 object 레인 (pose_object 금지).
   const boxFrom = item.videoobjectsfrom || "box";
   const poseFrom = item.poseobjectsfrom || "pose_box";
@@ -834,7 +840,7 @@ export function collectAllLaneClips(item) {
     {
       lane: "object",
       sourcePrefix: "",
-      // confidence 분기 후 pose는 연장 금지. 수동 last-span 연장은 후처리하지 않음.
+      // source 분기 후 pose는 연장 금지. 수동 last-span 연장은 후처리하지 않음.
       extendLastToVideoEnd: false,
     },
   );
@@ -843,7 +849,7 @@ export function collectAllLaneClips(item) {
   allVideoClips.forEach((clip) => {
     const isAuto = isAutoTaggedVideoRegion(clip.region);
     const conf = regionConfidenceValue(clip.region);
-    const hasConf = conf != null;
+    const segSource = regionSegmentSource(clip.region);
     if (isAuto) {
       poseObjectClips.push({
         ...clip,
@@ -851,7 +857,8 @@ export function collectAllLaneClips(item) {
         meta: {
           ...clip.meta,
           sourceKind: "pose",
-          hasConfidence: hasConf,
+          segmentSource: segSource,
+          hasConfidence: conf != null,
           confidence: conf,
         },
       });
@@ -862,6 +869,7 @@ export function collectAllLaneClips(item) {
         meta: {
           ...clip.meta,
           sourceKind: "manual",
+          segmentSource: segSource,
           hasConfidence: false,
           confidence: null,
         },

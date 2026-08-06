@@ -130,7 +130,7 @@ const Model = types
     },
 
     /**
-     * Video 박스 라벨: `AI · seg_…: Person` (confidence set) / `seg_…: Person` (수동).
+     * Video 박스 라벨: `AI · seg_…: Person` (source=auto) / `seg_…: Person` (수동).
      * Labels 클래스명(Person)은 유지. 인스턴스는 segment id.
      */
     getLabelText(joinstr) {

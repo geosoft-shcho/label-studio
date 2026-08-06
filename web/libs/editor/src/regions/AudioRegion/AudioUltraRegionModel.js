@@ -3,8 +3,12 @@ import { AudioModel } from "../../tags/object/AudioNext";
 import Utils from "../../utils";
 import Constants from "../../core/Constants";
 import { clamp } from "../../utils/utilities";
+import {
+  normalizeReviewed,
+  normalizeSegmentSource,
+} from "../../utils/segmentSource";
 
-/** 설계-20: LayerSegment.confidence set(0 포함) → STT 자동 레인. */
+/** 설계-20 §9: confidence는 UI 점수만. 레인 분기는 source. */
 function finiteConfidence(v) {
   if (v == null || v === "") return null;
   const n = Number(v);
@@ -21,8 +25,10 @@ export const AudioUltraRegionModel = types
     channel: types.optional(types.number, 0),
 
     selectedregionbg: types.optional(types.string, "rgba(0, 0, 0, 0.5)"),
-    // 설계-20: LayerSegment.confidence (unset=수동 자막, set=STT 자동)
+    // 설계-20 §9: UI 신뢰도. 자동/수동은 source.
     confidence: types.maybeNull(types.number),
+    source: types.optional(types.string, "manual"),
+    reviewed: types.optional(types.boolean, false),
   })
   .preProcessSnapshot((snapshot) => {
     const value = snapshot.value || {};
@@ -33,6 +39,8 @@ export const AudioUltraRegionModel = types
     return {
       ...snapshot,
       confidence: conf,
+      source: normalizeSegmentSource(snapshot.source ?? value.source ?? "manual"),
+      reviewed: normalizeReviewed(snapshot.reviewed ?? value.reviewed),
       score: conf != null ? conf : snapshot.score ?? null,
     };
   })
@@ -89,13 +97,16 @@ export const AudioUltraRegionModel = types
     return {
       serialize() {
         const conf = finiteConfidence(self.confidence) ?? finiteConfidence(self.score);
+        const source = normalizeSegmentSource(self.source);
         const res = {
           original_length: self.object._ws?.duration,
           value: {
             start: self.start,
             end: self.end,
             channel: self.channel,
+            source,
             ...(conf != null ? { confidence: conf } : {}),
+            ...(self.reviewed ? { reviewed: true } : {}),
           },
         };
 

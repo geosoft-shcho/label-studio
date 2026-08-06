@@ -32,8 +32,8 @@ const RectanglePure: FC<RectProps> = ({
   ...rest
 }) => {
   const style = useRegionStyles(reg, { includeFill: true });
-  // 설계-20: LayerSegment.confidence set → 자동(AI) 점선 bbox
-  const isAuto = !!(reg?.hasInferenceConfidence ?? (reg?.inferenceConfidence != null));
+  // 설계-20 §9: source=auto → 자동(AI) 점선 bbox (confidence는 점수만)
+  const isAuto = !!(reg?.hasInferenceConfidence ?? (reg?.segmentSource === "auto"));
   const { realWidth: waWidth, realHeight: waHeight, scale: waScale } = workingArea;
 
   const newBox = useMemo(

@@ -37,19 +37,20 @@ Control인 이유: task media를 직접 로드하지 않고, `toName`/`*From`으
 
 | lane 키 | UI 라벨 (`source · kind`) | 데이터 출처 | 비고 |
 |---------|---------------------------|-------------|------|
-| `stt` | 자동 · 자막 (+AI 뱃지) | `audioSegmentsFrom` + transcript + **confidence set** | AI 전사 |
-| `audio_manual` | 수동 · 자막 | 동일 캐리어 + **confidence unset** | 사람 작성·검수 clear |
-| `object` | 수동 · 객체 / `수동 · {class}` | `videoObjectsFrom` + **confidence unset** | instance 행 확장 |
-| `pose_object` | 자동 · 객체 / `자동 · {class}` (+AI) | `poseObjectsFrom` + **confidence set** | instance 행 확장 |
+| `stt` | 자동 · 자막 (+AI 뱃지) | `audioSegmentsFrom` + transcript + **source=auto** | AI 전사 |
+| `audio_manual` | 수동 · 자막 | 동일 캐리어 + **source=manual** | 사람 작성 |
+| `object` | 수동 · 객체 / `수동 · {class}` | `videoObjectsFrom` + **source=manual** | instance 행 확장 |
+| `pose_object` | 자동 · 객체 / `자동 · {class}` (+AI) | `poseObjectsFrom` + **source=auto** | instance 행 확장 |
 | `saved_attachment` | 첨부 | `SavedSegmentAttachments` | 서버 첨부 전용 |
 | `relation` | 관계 | `annotation.relationStore` 파생 clip | endpoint 시간 **합집합**. video endpoint는 **keyframe 실구간**만 (VideoPose `isInLifespan` 전체 연장 금지). 표시용 최소 duration `max(1/fps,1s)`·min-width 32px. mapper/proto·store 불변 |
 
-레인 분기는 control 이름이 아니라 **설계-20 `LayerSegment.confidence` 유무**다.
-unset(검수 clear 포함) → `audio_manual` / `object`, set(0 포함) → `stt` / `pose_object`.
+레인 분기는 control 이름이 아니라 **설계-20 §9 `LayerSegment.source`** 다.
+`source=auto` → `stt` / `pose_object`, `source=manual`(기본) → `audio_manual` / `object`.
+`confidence`는 UI 점수·뱃지만. `reviewed`는 검수 여부(레인 분기 아님).
 `kind`/`displayName`만으로 분기하지 않는다.
 
-Audio region은 `AudioUltraRegionModel.confidence`(및 Result.value.confidence)에
-hydrate 시 반영한다. MST에 필드가 없으면 inject 값이 버려져 전부 수동 레인으로 간다.
+Audio region은 `AudioUltraRegionModel.source`(+ `confidence`/`reviewed`)에
+hydrate 시 반영한다. MST에 `source`가 없으면 기본 manual로 수동 레인에 간다.
 
 `attachment` lane(세션 bucket 요약)은 embed `SegmentAttachmentsPanel`로 대체되어 **기본 showLanes에서 제외**.
 
@@ -66,7 +67,7 @@ pose는 `extendLastToVideoEnd=false`로 실구간만 그린다. 점은 뷰포트
 
 팔레트 Labels는 클래스명만(`Person`). 인스턴스 구분은 segment id(region id)다.
 `Person p1` 같은 instance 라벨을 Labels에 넣지 않는다.
-Video bbox는 confidence set 시 점선 + `AI` 라벨 접두 + score 뱃지.
+Video bbox는 source=auto 시 점선 + `AI` 라벨 접두; score 뱃지는 confidence 있을 때.
 
 STT/수동 구분 없이 `textarea` 레이어 apply도 동일: `faivv-apply-transcript.js`가 inject 전
 `audio_segments`에 `ensureLabelValue`로 팔레트를 병합하고,
@@ -89,9 +90,9 @@ clip 자막은 TextArea / `_faivvCaptionText` / `window.__faivvRegionCaptions` �
   showLanes="stt,object,pose_object,saved_attachment,relation" />
 ```
 
-Soft split: AI·수동 bbox가 같은 `box` control을 공유한다. 레인 분기는 **confidence**
-(설계-20). AI keypoints는 pose overlay이며 수동 tip/grip만 `video_vector`.
-저장 시 AI ownership segment는 confidence unset이어도 pose 레이어에 유지한다
+Soft split: AI·수동 bbox가 같은 `box` control을 공유한다. 레인 분기는 **source**
+(설계-20 §9). AI keypoints는 pose overlay이며 수동 tip/grip만 `video_vector`.
+저장 시 AI ownership segment는 source와 무관하게 pose 레이어에 유지할 수 있다
 (표시≠레이어 배정).
 
 name/속성 문자열은 다음 세 곳과 **동일**해야 한다.

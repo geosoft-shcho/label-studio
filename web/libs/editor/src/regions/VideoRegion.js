@@ -6,12 +6,17 @@ import NormalizationMixin from "../mixins/Normalization";
 import RegionsMixin from "../mixins/Regions";
 import { VideoModel } from "../tags/object/Video";
 import { FF_LEAP_187, isFF } from "../utils/feature-flags";
+import {
+  isAutoSegmentSource,
+  normalizeReviewed,
+  normalizeSegmentSource,
+} from "../utils/segmentSource";
 
 export const onlyProps = (props, obj) => {
   return Object.fromEntries(props.map((prop) => [prop, obj[prop]]));
 };
 
-/** 설계-20: LayerSegment.confidence set(0 포함) → 자동 라벨링. */
+/** 설계-20 §9: confidence는 UI 점수만. */
 function finiteConfidence(v) {
   if (v == null || v === "") return null;
   const n = Number(v);
@@ -28,8 +33,12 @@ const Model = types
     // faivv: LayerSegment.id — Labels Person 인스턴스 구분용
     segmentId: types.maybeNull(types.string),
     personId: types.maybeNull(types.string),
-    // 설계-20: LayerSegment.confidence (unset=수동, set=추론)
+    // 설계-20 §9: UI 신뢰도(0..1). 자동/수동 판별은 source.
     confidence: types.maybeNull(types.number),
+    // LayerSegment.source — "auto" | "manual" (기본 manual)
+    source: types.optional(types.string, "manual"),
+    // LayerSegment.reviewed — 검수 완료
+    reviewed: types.optional(types.boolean, false),
   })
   .preProcessSnapshot((snapshot) => {
     const value = snapshot.value || {};
@@ -37,12 +46,18 @@ const Model = types
       finiteConfidence(snapshot.confidence) ??
       finiteConfidence(value.confidence) ??
       finiteConfidence(snapshot.score);
+    const source = normalizeSegmentSource(
+      snapshot.source ?? value.source ?? "manual",
+    );
+    const reviewed = normalizeReviewed(snapshot.reviewed ?? value.reviewed);
     return {
       ...snapshot,
       sequence: snapshot.sequence || value.sequence,
       segmentId: snapshot.segmentId ?? value.segmentId ?? null,
       personId: snapshot.personId ?? value.personId ?? null,
       confidence: conf,
+      source,
+      reviewed,
       // LabelOnBbox score 뱃지 (0도 표시되도록 score 유지)
       score: conf != null ? conf : snapshot.score ?? null,
     };
@@ -59,11 +74,29 @@ const Model = types
       return getRoot(self)?.annotationStore?.selected;
     },
 
-    /** 설계-20: confidence set → 자동(AI). */
+    /** 설계-20 §9: source=auto → 자동(AI). 이름 유지(호환). */
     get hasInferenceConfidence() {
-      return self.inferenceConfidence != null;
+      return isAutoSegmentSource(self.segmentSource);
     },
 
+    get segmentSource() {
+      try {
+        if (self.source) return normalizeSegmentSource(self.source);
+      } catch (e) {
+        /* noop */
+      }
+      try {
+        for (const r of self.results || []) {
+          const s = r?.value?.source;
+          if (s != null && s !== "") return normalizeSegmentSource(s);
+        }
+      } catch (e2) {
+        /* noop */
+      }
+      return "manual";
+    },
+
+    /** UI 점수 — 레인 분기에 쓰지 않음. */
     get inferenceConfidence() {
       const fromField = finiteConfidence(self.confidence);
       if (fromField != null) return fromField;
@@ -115,6 +148,8 @@ const Model = types
       if (self.personId) value.personId = self.personId;
       const conf = self.inferenceConfidence;
       if (conf != null) value.confidence = conf;
+      value.source = self.segmentSource || "manual";
+      if (self.reviewed) value.reviewed = true;
 
       return { value };
     },

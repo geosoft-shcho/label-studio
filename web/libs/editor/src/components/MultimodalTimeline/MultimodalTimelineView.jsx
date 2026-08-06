@@ -14,7 +14,7 @@ import { subscribeMediaPlayhead } from "./utils/mediaSync";
 import styles from "./MultimodalTimelineView.module.scss";
 
 /** laneLabelsColumn title 폴백.
- * 축: source(수동/자동=confidence) · kind(자막/객체/첨부/관계=LayerDocument.kind 표시어).
+ * 축: source(수동/자동=LayerSegment.source) · kind(자막/객체/첨부/관계).
  * lane key 자체는 바꾸지 않는다. instance 행은 meta.laneLabel 이 우선. */
 const LANE_LABELS = {
   stt: "자동 · 자막",

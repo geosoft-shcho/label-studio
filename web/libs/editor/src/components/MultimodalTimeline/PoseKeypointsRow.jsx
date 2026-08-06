@@ -1,7 +1,7 @@
 /**
  * Frames `lsf-keypoints` 와 동일한 lifespan+point UI를 초 좌표(pxPerSec)로 그린다.
  * TimelineContext(step/frame)에 의존하지 않는다.
- * 설계-20: laneKind / clip.meta.confidence 로 수동·자동 시각 구분.
+ * 설계-20 §9: laneKind(source) / clip.meta.confidence(UI 점수) 로 시각 구분.
  */
 import { useMemo } from "react";
 import PropTypes from "prop-types";
