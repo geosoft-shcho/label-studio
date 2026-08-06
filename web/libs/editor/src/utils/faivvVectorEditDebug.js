@@ -4,7 +4,7 @@
  * Soft-split config (faivv-flow label_studio_v2_config.dart):
  *   box            → VideoRectangle (AI + manual bbox; tip/grip도 sequence에 실림)
  *   video_vector   → VideoVectorLabels (수동 tip/grip)
- *   pose           → VideoPoseLabels (config 주석 — 복원 금지)
+ *   pose           → VideoPoseLabels 통합 UI 제거됨 (레거시 from_name만)
  *
  * 실제 적용 region (video):
  *   - VideoPoseRegion / VideoRectangleRegion ← from_name=box (AI Soft-split)
@@ -224,7 +224,7 @@ export function regionDebugMeta(reg) {
       const fn = String(fromName);
       if (fn === "box") return "VideoRectangle(box)";
       if (fn === "video_vector") return "VideoVectorLabels(video_vector)";
-      if (fn === "pose") return "VideoPoseLabels(pose)[config-commented]";
+      if (fn === "pose") return "legacy from_name=pose (VideoPoseLabels UI removed)";
       return fn ? `other(${fn})` : "";
     })(),
     segmentId: String(reg.segmentId || reg.videoSegmentId || ""),

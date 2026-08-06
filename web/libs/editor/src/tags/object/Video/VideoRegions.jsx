@@ -151,9 +151,7 @@ const VideoRegionsPure = ({
       const selected = manager?.findSelectedTool();
       const drawing = manager?.findDrawingTool();
 
-      // VideoPoseTool 우선 (VideoPoseLabels 단일 태그)
-      if (drawing?.toolName === "VideoPoseTool") return drawing;
-      if (selected?.toolName === "VideoPoseTool") return selected;
+      // Soft-split 수동 tip/grip: VideoVectorTool
       if (drawing?.toolName === "VideoVectorTool") return drawing;
       if (selected?.toolName === "VideoVectorTool") return selected;
     } catch {
@@ -162,10 +160,9 @@ const VideoRegionsPure = ({
     return null;
   }, [item.name]);
 
-  const isPoseDrawingTool = (tool) =>
-    tool && (tool.toolName === "VideoPoseTool" || tool.toolName === "VideoVectorTool");
+  const isVectorDrawingTool = (tool) => tool && tool.toolName === "VideoVectorTool";
 
-  // VideoPose: 빈 Stage 제스처 → 드래그=bbox / 클릭=점.
+  // Soft-split VideoVector: 빈 Stage 제스처 → 드래그=bbox 프리뷰 / 클릭=점.
   // canResumeDrawing만으로 툴에 넘기면 hydrate된 리전이 빈 영역 드래그(bbox)를 가로챔.
   const poseGestureRef = useRef(null);
 
@@ -200,7 +197,7 @@ const VideoRegionsPure = ({
 
     if (!isInBounds) return;
 
-    if (isPoseDrawingTool(vectorTool)) {
+    if (isVectorDrawingTool(vectorTool)) {
             poseGestureRef.current = { x, y, mode: "pending", tool: vectorTool, evt: e.evt };
             item.annotation.unselectAreas();
       setNewRegion({ x, y, width: 0, height: 0 });
@@ -264,7 +261,7 @@ const VideoRegionsPure = ({
 
     const { x, y } = limitCoordinates(normalizeMouseOffsets(e.evt.offsetX, e.evt.offsetY));
 
-    if (gesture && isPoseDrawingTool(gesture.tool)) {
+    if (gesture && isVectorDrawingTool(gesture.tool)) {
       const dx = Math.abs(x - gesture.x);
       const dy = Math.abs(y - gesture.y);
       const isBbox = gesture.mode === "bbox" || dx >= MIN_SIZE || dy >= MIN_SIZE;
@@ -288,8 +285,7 @@ const VideoRegionsPure = ({
       setNewRegion(null);
       setDrawingMode(false);
       const tool = gesture.tool;
-      const poseCtrl = item.videoPoseControl;
-            tool.event("mousedown", gesture.evt || e.evt, [gesture.x, gesture.y]);
+      tool.event("mousedown", gesture.evt || e.evt, [gesture.x, gesture.y]);
       tool.event("mouseup", e.evt, [x, y]);
       return;
     }

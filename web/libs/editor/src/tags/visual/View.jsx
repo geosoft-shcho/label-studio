@@ -122,8 +122,6 @@ const Model = types.model({
     "videorectangle",
     "videovector",
     "videovectorlabels",
-    "videopose",
-    "videoposelabels",
     "timelinelabels",
     "segmentattachments",
     "savedsegmentattachments",

@@ -179,12 +179,8 @@ const HtxVideoView = ({ item, store }) => {
   );
 
   const supportsRegions = useMemo(() => {
-    // VideoPoseLabels 단일 태그: videoPoseControl 만 있어도 오버레이 스테이지 필요
-    return (
-      isDefined(item?.videoControl) ||
-      isDefined(item?.videoVectorControl) ||
-      isDefined(item?.videoPoseControl)
-    );
+    // Soft-split: VideoRectangle(box) 및/또는 VideoVectorLabels
+    return isDefined(item?.videoControl) || isDefined(item?.videoVectorControl);
   }, [item]);
 
   const supportsTimelineRegions = useMemo(() => {
@@ -570,31 +566,11 @@ const HtxVideoView = ({ item, store }) => {
     });
   }
 
-  // ①-3 VideoPoseLabels: 선택 라벨 미리보기 행
-  if (
-    item.videoPoseControl?.selectedLabels?.length &&
-    !item.videoVectorControl?.selectedLabels?.length &&
-    !item.annotation.selectionSize
-  ) {
-    const label = item.videoPoseControl.selectedLabels[0];
-    const frame = item.frame || item.currentFrame || 1;
-    regions.unshift({
-      id: "new-videopose",
-      label: label._value || label.value || "Empty",
-      color: label.background ?? defaultStyle.fillcolor,
-      visible: true,
-      selected: true,
-      sequence: [{ frame, enabled: true }],
-      timeline: false,
-    });
-  }
-
   // ① video_labels + box: 선택 라벨 미리보기 행
   const videoLabelsControl = item.annotation?.names?.get?.("video_labels");
   if (
     videoLabelsControl?.selectedLabels?.length &&
     !item.videoVectorControl?.selectedLabels?.length &&
-    !item.videoPoseControl?.selectedLabels?.length &&
     !item.annotation.selectionSize
   ) {
     const label = videoLabelsControl.selectedLabels[0];

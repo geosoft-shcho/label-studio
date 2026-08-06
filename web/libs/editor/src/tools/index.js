@@ -14,7 +14,6 @@ import { Contrast } from "./Contrast";
 import { MagicWand } from "./MagicWand";
 import { Selection } from "./Selection";
 import { VideoVector } from "./VideoVector";
-import { VideoPose } from "./VideoPose";
 
 export {
   Brush,
@@ -31,5 +30,4 @@ export {
   MagicWand,
   Selection,
   VideoVector,
-  VideoPose,
 };
