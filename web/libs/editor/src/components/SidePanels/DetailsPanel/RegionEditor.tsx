@@ -18,6 +18,7 @@ import { Block, Elem, useBEM } from "../../../utils/bem";
 import { FF_DEV_2715, isFF } from "../../../utils/feature-flags";
 import { TimeDurationControl } from "../../TimeDurationControl/TimeDurationControl";
 import { TimelineRegionEditor } from "./TimelineRegionEditor";
+import { VideoRegionSequenceInfo, isVideoSequenceRegion } from "./VideoRegionSequenceInfo";
 import "./RegionEditor.scss";
 
 interface RegionEditorProps {
@@ -54,7 +55,14 @@ const IconMapping = {
 const RegionEditorComponent: FC<RegionEditorProps> = ({ region }) => {
   const isAudioRegion = isFF(FF_DEV_2715) && region.type === "audioregion";
   const isTimelineRegion = region.type === "timelineregion";
-  const Component = isTimelineRegion ? TimelineRegionEditor : isAudioRegion ? AudioRegionProperties : RegionProperties;
+  const isVideoSeq = isVideoSequenceRegion(region);
+  const Component = isTimelineRegion
+    ? TimelineRegionEditor
+    : isAudioRegion
+      ? AudioRegionProperties
+      : isVideoSeq
+        ? VideoRegionSequenceInfo
+        : RegionProperties;
 
   return (
     <Block name="region-editor" mod={{ disabled: region.isReadOnly() }}>
