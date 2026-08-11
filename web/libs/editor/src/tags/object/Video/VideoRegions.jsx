@@ -428,11 +428,18 @@ const Shape = observer(({ reg, frame, stageRef, ...props }) => {
       box.height != null &&
       Number(box.width) > 0 &&
       Number(box.height) > 0;
-    // VideoVector와 동일: pose region은 항상 VectorShape mount (점·선 표시)
+    // bbox+vertices: Rectangle이 라벨 담당, VectorShape는 점·선만 (이중 LabelOnVideoBbox 방지)
     return (
       <Group>
         {hasBbox ? <Rectangle reg={reg} box={box} frame={frame} onClick={handleClick} {...props} /> : null}
-        <VideoVectorShape reg={reg} box={box} frame={frame} onClick={handleClick} {...props} />
+        <VideoVectorShape
+          reg={reg}
+          box={box}
+          frame={frame}
+          onClick={handleClick}
+          showLabel={!hasBbox}
+          {...props}
+        />
       </Group>
     );
   }

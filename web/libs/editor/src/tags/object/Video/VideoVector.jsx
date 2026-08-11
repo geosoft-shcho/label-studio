@@ -183,6 +183,8 @@ const VideoVectorPure = ({
   selected,
   draggable,
   listening,
+  /** false면 LabelOnVideoBbox 생략 (videoposeregion+bbox는 Rectangle이 담당). */
+  showLabel = true,
   onClick: onClickProp,
   onDragMove,
   ...rest
@@ -436,10 +438,20 @@ const VideoVectorPure = ({
   // 저장·rehydrate로 area가 교체되면 구 observer가 한 틱 남을 수 있음 — dead node 렌더 금지
   if (!alive) return null;
 
+  // videoposeregion + bbox: Rectangle이 LabelOnVideoBbox를 그림 → 이중 칩 방지
+  const hasRegionBbox =
+    box &&
+    box.x != null &&
+    box.y != null &&
+    Number(box.width) > 0 &&
+    Number(box.height) > 0;
+  const poseBboxOwnsLabel = reg?.type === "videoposeregion" && hasRegionBbox;
+  const renderLabel = showLabel !== false && !poseBboxOwnsLabel && pixelVertices.length > 0;
+
   return (
     <Group listening={listening} opacity={reg.hidden ? 0 : 1}>
       {/* 라벨을 점 아래에 두어 tip/grip 히트를 가리지 않음 */}
-      {pixelVertices.length > 0 && (
+      {renderLabel && (
         <LabelOnVideoBbox
           reg={reg}
           box={bbox}
