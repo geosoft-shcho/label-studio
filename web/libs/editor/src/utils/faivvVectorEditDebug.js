@@ -16,6 +16,10 @@
  *   // 또는
  *   window.FAIVV_VECTOR_EDIT_DEBUG = true
  *
+ * 저장 구조 로그 (편집 후 Save):
+ *   [faivv-vector-edit] save.structure.serializeAnnotation|requestSave
+ *   [faivv-vector-edit] save.structure.dart  (Flutter persist)
+ *
  * 참고 envelope (AI torch tip/grip):
  *   /assets/ast_01KZADC2DVW4ZP7P9KAT37ZYN2/content
  *   → data.lsfResult.value.sequence[].keypoints|vertices
@@ -317,5 +321,89 @@ export function logRegionSerialize(reg, sequence) {
       diverged > 0
         ? "vertices만 편집되고 keypoints가 남으면 Dart dirty(KP 비교)가 false"
         : undefined,
+  });
+}
+
+function isVideoGeomSaveResult(r) {
+  if (!r || typeof r !== "object") return false;
+  const t = String(r.type || "").toLowerCase();
+  const fn = String(r.from_name || "");
+  if (fn === "box" || fn === "video_vector" || fn === "pose" || fn === "pose_box") {
+    return true;
+  }
+  return (
+    t.includes("videorectangle") ||
+    t.includes("videovector") ||
+    t.includes("videopose")
+  );
+}
+
+/** 저장용 result 한 건의 value.sequence 구조 요약 (raw 전체 dump 금지). */
+export function summarizeSaveResultStructure(r) {
+  if (!r || typeof r !== "object") return null;
+  const value = r.value && typeof r.value === "object" ? r.value : {};
+  const seq = Array.isArray(value.sequence) ? value.sequence : [];
+  const enabledSamples = [];
+  for (let i = 0; i < seq.length && enabledSamples.length < 3; i++) {
+    const kf = seq[i];
+    if (!kf || kf.enabled === false) continue;
+    enabledSamples.push(summarizeKeyframe(kf));
+  }
+  const fn = String(r.from_name || "");
+  return {
+    id: r.id ?? null,
+    type: r.type ?? null,
+    from_name: fn || null,
+    to_name: r.to_name ?? null,
+    softSplitPanel:
+      fn === "box"
+        ? "VideoRectangle(box)"
+        : fn === "video_vector"
+          ? "VideoVectorLabels(video_vector)"
+          : fn
+            ? `other(${fn})`
+            : null,
+    valueKeys: Object.keys(value),
+    source: value.source ?? null,
+    confidence: value.confidence ?? null,
+    segmentId: value.segmentId ?? null,
+    personId: value.personId ?? null,
+    labels: value.labels ?? value.videoposelabels ?? value.videovectorlabels ?? null,
+    framesCount: value.framesCount ?? null,
+    seqLen: seq.length,
+    sequenceSamples: enabledSamples,
+  };
+}
+
+/**
+ * 저장(serializeAnnotation) 직후 AI bbox / vector result 저장 구조.
+ * @param {string} phase e.g. 'serializeAnnotation' | 'requestSave'
+ * @param {Array} results
+ */
+export function logSaveResultsStructure(phase, results) {
+  if (!isFaivvVectorEditDebugEnabled()) return;
+  const list = Array.isArray(results) ? results : [];
+  const video = [];
+  const byType = {};
+  const byControl = {};
+  for (let i = 0; i < list.length; i++) {
+    const r = list[i] || {};
+    const t = r.type || "(none)";
+    const fn = r.from_name || "(none)";
+    byType[t] = (byType[t] || 0) + 1;
+    byControl[fn] = (byControl[fn] || 0) + 1;
+    if (isVideoGeomSaveResult(r) && video.length < 12) {
+      video.push(summarizeSaveResultStructure(r));
+    }
+  }
+  logFaivvVectorEdit(`save.structure.${phase || "serialize"}`, {
+    total: list.length,
+    byType,
+    byControl,
+    videoGeomCount: video.length,
+    videoResults: video,
+    hint:
+      "AI Soft-split: from_name=box + source=auto (+keypoints|vertices). " +
+      "수동 tip/grip: from_name=video_vector",
   });
 }

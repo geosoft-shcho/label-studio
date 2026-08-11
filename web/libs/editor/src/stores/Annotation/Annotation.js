@@ -21,6 +21,7 @@ import {
   isFF,
 } from "../../utils/feature-flags";
 import { delay, isDefined } from "../../utils/utilities";
+import { logSaveResultsStructure } from "../../utils/faivvVectorEditDebug";
 import { CommentStore } from "../Comment/CommentStore";
 import RegionStore from "../RegionStore";
 import RelationStore from "../RelationStore";
@@ -1013,6 +1014,9 @@ const _Annotation = types
         .concat(self.relationStore.serialize(options));
 
       document.body.style.cursor = "default";
+
+      // faivv: AI bbox/vector 편집 후 저장 구조 (FAIVV_VECTOR_EDIT_DEBUG=1)
+      logSaveResultsStructure("serializeAnnotation", result);
 
       return result;
     },
