@@ -66,25 +66,25 @@ auto clip을 모두 넣고, 왼쪽 라벨은 고정 `자동 · 자막`(+AI). 구
 
 `audio_manual`만 instance 행 전개(`subtitleLaneEntries`): `audio_manual:<segmentId>`,
 행 라벨 `수동 · {classLabel}` — **해당 segment에 저장된 Labels만** (`speaker_1` 등).
-팔레트 `selectedValues` / 재선택으로 labeling이 바뀌어도 **laneLabelsColumn title은
+Labels `selectedValues` / 재선택으로 labeling이 바뀌어도 **laneLabelsColumn title은
 처음 확정 Labels를 유지** (`_faivvSavedClassLabel` / video `_faivvSavedLaneLabel`).
 transcript는 clip에만. 동일 classLabel 다건이면 seg id suffix. 수동 클립이 없으면
 드래그용 빈 트랙 1행 (`수동 · 자막`).
 
 `object` / `pose_object` laneLabelsColumn title도 동일: **저장된 Labels** 기준
-(`videoRegionLabel` → `_faivvSavedLaneLabel`). 팔레트만 바꿔도 기존 행 제목 불변.
+(`videoRegionLabel` → `_faivvSavedLaneLabel`). Labels 선택만 바꿔도 기존 행 제목 불변.
 
 표시는 박스 clip이 아니라 `PoseKeypointsRow`(Frames `lsf-keypoints`와 동일 개념):
 lifespan 막대 + `sequence.frame/fps` 키프레임 점. `time` 필드는 쓰지 않는다.
 자동 레인은 점선 lifespan + `AI`/`confidence` 뱃지, 수동은 solid.
 pose는 `extendLastToVideoEnd=false`로 실구간만 그린다. 점은 뷰포트 컬링·간격 샘플링.
 
-팔레트 Labels는 클래스명만(`Person`). 인스턴스 구분은 segment id(region id)다.
+Labels는 클래스명만(`Person`). 인스턴스 구분은 segment id(region id)다.
 `Person p1` 같은 instance 라벨을 Labels에 넣지 않는다.
 Video bbox는 source=auto 시 점선 + `AI` 라벨 접두; score 뱃지는 confidence 있을 때.
 
 STT/수동 구분 없이 `textarea` 레이어 apply도 동일: `faivv-apply-transcript.js`가 inject 전
-`audio_segments`에 `ensureLabelValue`로 팔레트를 병합하고,
+`audio_segments`에 `ensureLabelValue`로 라벨 목록을 병합하고,
 `MultimodalTimeline.bumpClips()`로 `stt` 레인을 갱신한다.
 clip 글자는 TextArea `transcript`(+ `_faivvCaptionText`)만 쓴다.
 Labels(`audio_segments`) 값은 레인 분류·저장에만 쓰고 clip 텍스트로는 쓰지 않는다.

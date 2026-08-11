@@ -110,7 +110,7 @@ function regionLabelText(region) {
 
 /**
  * Labels control 결과에서 region 의 라벨 텍스트를 모은다 (복수 라벨은 ", " 연결).
- * laneLabelsColumn 용: 팔레트 재선택으로 labeling.mainValue 가 바뀌어도
+ * laneLabelsColumn 용: Labels 재선택으로 labeling.mainValue 가 바뀌어도
  * 처음 저장된 Labels(`_faivvSavedClassLabel`)를 유지한다.
  */
 function regionLabelsList(region) {
@@ -127,7 +127,7 @@ function regionLabelsList(region) {
     /* noop */
   }
 
-  // value.labels 만 — TextArea mainValue(본문)·팔레트 selectedValues 금지.
+  // value.labels 만 — TextArea mainValue(본문)·Labels selectedValues 금지.
   safeRegionResults(region).forEach((r) => {
     const labels = r?.value?.labels;
     if (Array.isArray(labels)) labels.forEach(add);

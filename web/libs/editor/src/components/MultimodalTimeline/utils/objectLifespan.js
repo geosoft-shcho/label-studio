@@ -245,7 +245,7 @@ export function keyframesSecInSpan(region, startFrame, endFrame, fps) {
 
 /**
  * laneLabelsColumn / object 행 제목용 Labels.
- * 팔레트 클릭 시 `region.setValue` 로 labeling.mainValue 가 바뀌어도
+ * Labels 클릭 시 `region.setValue` 로 labeling.mainValue 가 바뀌어도
  * **처음 확정된(저장된) Labels** 를 유지한다 (`_faivvSavedLaneLabel`).
  * Labels control `selectedValues()` 는 사용하지 않는다.
  */
@@ -261,7 +261,7 @@ export function videoRegionLabel(region) {
 
   let label = "";
 
-  // region-scoped results 의 labels 우선 (팔레트 selectedValues 금지).
+  // region-scoped results 의 labels 우선 (Labels selectedValues 금지).
   try {
     const results = safeRegionResults(region);
     for (let i = 0; i < results.length; i++) {
