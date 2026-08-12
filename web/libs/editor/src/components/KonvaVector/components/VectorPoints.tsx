@@ -1,8 +1,35 @@
 import type React from "react";
-import { Circle, Rect } from "react-konva";
+import { Fragment } from "react";
+import { Circle, Rect, Text } from "react-konva";
 import type Konva from "konva";
 import type { BezierPoint } from "../types";
 import { HIT_RADIUS } from "../constants";
+
+/** tip/grip/pose 관절명. nanoid·UUID는 숨김. */
+export type ShowPointLabelsMode = boolean | "always" | "selected" | "auto" | "never";
+
+/** Soft-split vertices[].id 형태 (tip, left_eye). 수동 nanoid는 제외. */
+export function isSemanticPointLabel(id: unknown): id is string {
+  if (typeof id !== "string") return false;
+  const s = id.trim();
+  if (!s || s.length > 40) return false;
+  // UUID
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) return false;
+  // pose/torch: lowercase snake_case (tip, grip, nose, left_shoulder)
+  return /^[a-z][a-z0-9_]{0,39}$/.test(s);
+}
+
+function shouldRenderPointLabels(
+  mode: ShowPointLabelsMode | undefined,
+  selected: boolean,
+  pointCount: number,
+): boolean {
+  if (mode === false || mode === "never" || mode == null) return false;
+  if (mode === true || mode === "always") return true;
+  if (mode === "selected") return selected;
+  // auto: tip/grip(≤2)는 항상, pose(다점)는 selected일 때만
+  return selected || pointCount <= 2;
+}
 
 interface VectorPointsProps {
   initialPoints: BezierPoint[];
@@ -25,6 +52,8 @@ interface VectorPointsProps {
   pointStyle?: "circle" | "rectangle";
   activePointId?: string | null;
   maxPoints?: number;
+  /** Soft-split tip/grip·pose 관절명 표시. 기본 never(이미지 Vector 무영향). */
+  showPointLabels?: ShowPointLabelsMode;
   onPointClick?: (e: Konva.KonvaEventObject<MouseEvent>, pointIndex: number) => void;
 }
 
@@ -46,6 +75,7 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
   pointStyle = "circle",
   activePointId = null,
   maxPoints,
+  showPointLabels = "never",
   onPointClick,
 }) => {
   // CRITICAL: For single-point regions, we need to allow clicks even when not selected
@@ -58,12 +88,13 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
   // regardless of selected state. The hitFunc will always use HIT_RADIUS.SELECTION / scale
   // for consistent hit detection. We handle click events conditionally in onClick handler.
   const shouldEnableListening = !disabled && !transformMode;
+  const renderLabels = shouldRenderPointLabels(showPointLabels, selected, initialPoints.length);
 
   return (
     <>
       {initialPoints.map((point, index) => {
         // Scale up radius to compensate for Layer scaling
-        const scale = transform.zoom * fitScale;
+        const scale = transform.zoom * fitScale || 1;
         // Use configurable radius with fallbacks to defaults
         const enabledRadius = pointRadius?.enabled ?? 6;
         const disabledRadius = pointRadius?.disabled ?? 4;
@@ -87,6 +118,28 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
         // Make selected points larger
         const radiusMultiplier = isSelected ? 1.3 : 1;
         const scaledRadius = (baseRadius * radiusMultiplier) / scale;
+        const pointLabel = renderLabels && isSemanticPointLabel(point.id) ? point.id : null;
+        const fontSize = 10 / scale;
+        const labelOffsetX = scaledRadius + 4 / scale;
+        const labelOffsetY = -fontSize / 2;
+
+        const labelNode = pointLabel ? (
+          <Text
+            key={`point-label-${index}-${pointLabel}`}
+            x={point.x + labelOffsetX}
+            y={point.y + labelOffsetY}
+            text={pointLabel}
+            fontSize={fontSize}
+            fontFamily="sans-serif"
+            fill="#FFFFFF"
+            stroke="rgba(0,0,0,0.75)"
+            strokeWidth={Math.max(0.5, 2 / scale)}
+            fillAfterStrokeEnabled
+            listening={false}
+            perfectDrawEnabled={false}
+            name={`point-label-${index}`}
+          />
+        ) : null;
 
         // Common props for both Circle and Rect
         const commonClickHandler = onPointClick
@@ -132,7 +185,7 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
           const size = scaledRadius * 2;
 
           return (
-            <>
+            <Fragment key={`point-wrap-${index}-${point.id || index}`}>
               {/* White outline ring for selected points - rendered outside the colored stroke */}
               {selected && isSelected && (
                 <Rect
@@ -168,13 +221,14 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
                 hitFunc={hitFunc}
                 onClick={commonClickHandler}
               />
-            </>
+              {labelNode}
+            </Fragment>
           );
         }
 
         // Circle style (default)
         return (
-          <>
+          <Fragment key={`point-wrap-${index}-${point.id || index}`}>
             {/* White outline ring for selected points - rendered outside the colored stroke */}
             {selected && isSelected && (
               <Circle
@@ -214,7 +268,8 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
               hitFunc={hitFunc}
               onClick={commonClickHandler}
             />
-          </>
+            {labelNode}
+          </Fragment>
         );
       })}
     </>

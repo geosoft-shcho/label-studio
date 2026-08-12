@@ -201,6 +201,11 @@ export interface KonvaVectorProps {
   pointStrokeWidth?: number;
   /** Point style - "circle" or "rectangle" (default: "circle") */
   pointStyle?: "circle" | "rectangle";
+  /**
+   * Show semantic point id labels (tip/grip/pose joints).
+   * never (default) | always | selected | auto (≤2 always, else selected)
+   */
+  showPointLabels?: boolean | "always" | "selected" | "auto" | "never";
   /** Mouse down event handler */
   onMouseDown?: (e: KonvaEventObject<MouseEvent>) => void;
   /** Mouse move event handler */

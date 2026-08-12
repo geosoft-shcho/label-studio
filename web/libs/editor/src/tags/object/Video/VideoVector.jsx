@@ -492,6 +492,8 @@ const VideoVectorPure = ({
         pointStrokeSelected="#ff6b35"
         pointStrokeWidth={selected ? 2 : 1}
         pointStyle={control?.pointstyle ?? "circle"}
+        // Soft-split vertices[].id (tip/grip/nose/…) — bbox LabelOnVideoBbox와 별개
+        showPointLabels="always"
         disableInternalPointAddition={true}
         disableGhostLine={isDraggingRef.current}
         onFinish={handleFinish}

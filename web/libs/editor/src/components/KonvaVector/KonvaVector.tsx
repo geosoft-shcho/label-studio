@@ -289,6 +289,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
     pointStrokeSelected = DEFAULT_POINT_STROKE_SELECTED,
     pointStrokeWidth = DEFAULT_POINT_STROKE_WIDTH,
     pointStyle = "circle",
+    showPointLabels = "never",
   } = props;
 
   // Normalize input points to BezierPoint format
@@ -3824,6 +3825,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
             pointStrokeSelected={pointStrokeSelected}
             pointStrokeWidth={pointStrokeWidth}
             pointStyle={pointStyle}
+            showPointLabels={showPointLabels}
             activePointId={activePointId}
             maxPoints={maxPoints}
             onPointClick={(e, pointIndex) => {
@@ -4238,6 +4240,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
             pointStrokeSelected={pointStrokeSelected}
             pointStrokeWidth={pointStrokeWidth}
             pointStyle={pointStyle}
+            showPointLabels={showPointLabels}
             activePointId={activePointId}
             maxPoints={maxPoints}
             onPointClick={(e, pointIndex) => {
