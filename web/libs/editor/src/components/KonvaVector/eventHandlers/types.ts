@@ -70,7 +70,7 @@ export interface EventHandlerProps {
   draggedControlPoint: { pointIndex: number; controlIndex: number } | null;
   isDraggingNewBezier: boolean;
   newPointDragIndex: number | null;
-  cursorPosition: Point | null;
+  cursorPosition?: Point | null;
   visibleControlPoints: Set<number>;
   onPointsChange?: (points: BezierPoint[]) => void;
   onPointAdded?: (point: BezierPoint, index: number) => void;

@@ -1,9 +1,14 @@
 import type React from "react";
 import { Fragment } from "react";
-import { Circle, Rect, Text } from "react-konva";
+import { Circle as KonvaCircle, Rect as KonvaRect, Text as KonvaText } from "react-konva";
 import type Konva from "konva";
 import type { BezierPoint } from "../types";
 import { HIT_RADIUS } from "../constants";
+
+// react-konva ↔ React JSX 타입 불일치 (VectorTransformer와 동일 패턴)
+const Circle = KonvaCircle as any;
+const Rect = KonvaRect as any;
+const Text = KonvaText as any;
 
 /** tip/grip/pose 관절명. nanoid·UUID는 숨김. */
 export type ShowPointLabelsMode = boolean | "always" | "selected" | "auto" | "never";
@@ -205,7 +210,7 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
               {/* Main point rectangle with colored stroke */}
               <Rect
                 key={`point-${index}-${point.x}-${point.y}`}
-                ref={(node) => {
+                ref={(node: Konva.Rect | null) => {
                   pointRefs.current[index] = node;
                 }}
                 x={point.x - size / 2}
@@ -247,7 +252,7 @@ export const VectorPoints: React.FC<VectorPointsProps> = ({
             {/* Main point circle with colored stroke */}
             <Circle
               key={`point-${index}-${point.x}-${point.y}`}
-              ref={(node) => {
+              ref={(node: Konva.Circle | null) => {
                 pointRefs.current[index] = node;
               }}
               x={point.x}

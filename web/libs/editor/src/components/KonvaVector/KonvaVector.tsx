@@ -1,6 +1,6 @@
 import type Konva from "konva";
 import { useState, useRef, forwardRef, useImperativeHandle, useEffect, useMemo, useCallback } from "react";
-import { Group, Shape } from "react-konva";
+import { Group as KonvaGroup, Shape as KonvaShape } from "react-konva";
 import { ControlPoints, GhostLine, GhostPoint, type GhostPointRef, VectorPoints, VectorShape } from "./components";
 import { createEventHandlers } from "./eventHandlers";
 import { convertPoint } from "./pointManagement";
@@ -46,6 +46,10 @@ import {
   SELECTION_SIZE,
   CENTER_CALCULATION_DIVISOR,
 } from "./constants";
+
+// react-konva ↔ React JSX 타입 불일치 (VectorTransformer와 동일 패턴)
+const Group = KonvaGroup as any;
+const Shape = KonvaShape as any;
 
 /**
  * **KonvaVector Component** - Advanced vector graphics editor with bezier curve support
@@ -1623,12 +1627,12 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
       return pointCreationManager.startPoint(x, y);
     },
     updatePoint: (x: number, y: number) => {
-      if (disabled) return;
-      pointCreationManager.updatePoint(x, y);
+      if (disabled) return false;
+      return pointCreationManager.updatePoint(x, y);
     },
     commitPoint: (x: number, y: number) => {
-      if (disabled) return;
-      pointCreationManager.commitPoint(x, y);
+      if (disabled) return false;
+      return pointCreationManager.commitPoint(x, y);
     },
     // Programmatic point transformation methods
     translatePoints: (dx: number, dy: number, pointIds?: string[]) => {
@@ -2056,7 +2060,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
             } else if (deletedPointIds.has(deletedPoint.prevPointId)) {
               // If the previous point is also being deleted, we need to find the next valid ancestor
               // This handles cascading deletions in skeleton mode
-              let ancestorId = deletedPoint.prevPointId;
+              let ancestorId: string | undefined = deletedPoint.prevPointId;
               while (ancestorId && deletedPointIds.has(ancestorId)) {
                 const ancestorIndex = updatedPoints.findIndex((p) => p.id === ancestorId);
                 if (ancestorIndex >= 0 && ancestorIndex < updatedPoints.length) {
@@ -2951,7 +2955,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
               updatedPoint.controlPoint2 = snapToPixel(cp2Pos, pixelSnapping);
             }
 
-            const constrainedPoint = constrainAnchorPointsToBounds([updatedPoint], { width, height })[0];
+            const constrainedPoint = constrainAnchorPointsToBounds([updatedPoint], { width, height })[0] as BezierPoint;
             newPoints[draggedPointIndex] = constrainedPoint;
           }
 
@@ -3464,7 +3468,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
       onClick={
         !selected || transformMode
           ? undefined
-          : (e) => {
+          : (e: Konva.KonvaEventObject<MouseEvent>) => {
               // Prevent editing when disabled, but allow selection clicks
               // Prevent all clicks when in transform mode (already checked above, but double-check)
               if (transformMode) {
@@ -3546,7 +3550,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
       onDblClick={
         disabled
           ? undefined
-          : (e) => {
+          : (e: Konva.KonvaEventObject<MouseEvent>) => {
               // If we've already handled this double-click through debouncing, ignore it
               if (doubleClickHandledRef.current) {
                 return;
@@ -3562,7 +3566,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
       {/* Disabled when disableInternalPointAddition is true, component is not selected, or disabled */}
       {selected && !disabled && !disableInternalPointAddition && (
         <Shape
-          sceneFunc={(ctx, shape) => {
+          sceneFunc={(ctx: Konva.Context, shape: Konva.Shape) => {
             ctx.beginPath();
             ctx.rect(0, 0, width, height);
             ctx.fillShape(shape);
@@ -3577,7 +3581,7 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
           name="_transformable"
           ref={transformableGroupRef}
           draggable={!disabled}
-          onTransformEnd={(e) => {
+          onTransformEnd={(e: Konva.KonvaEventObject<MouseEvent>) => {
             // Prevent transform when disabled
             if (disabled) return;
             // This is called when ImageTransformer finishes transforming the Group
@@ -4442,18 +4446,6 @@ export const KonvaVector = forwardRef<KonvaVectorRef, KonvaVectorProps>((props, 
               // Mark that point selection was handled
               pointSelectionHandled.current = true;
             }}
-            onPointDragStart={eventHandlers.handlePointDragStart}
-            onPointDragMove={eventHandlers.handlePointDragMove}
-            onPointDragEnd={eventHandlers.handlePointDragEnd}
-            onPointConvert={eventHandlers.handlePointConvert}
-            onControlPointDragStart={eventHandlers.handleControlPointDragStart}
-            onControlPointDragMove={eventHandlers.handleControlPointDragMove}
-            onControlPointDragEnd={eventHandlers.handleControlPointDragEnd}
-            onControlPointConvert={eventHandlers.handleControlPointConvert}
-            onSegmentClick={eventHandlers.handleSegmentClick}
-            visibleControlPoints={visibleControlPoints}
-            allowBezier={allowBezier}
-            isTransforming={isTransforming}
             key={`vector-points-${initialPoints.length}-${initialPoints.map((p, i) => `${i}-${p.x.toFixed(1)}-${p.y.toFixed(1)}-${p.controlPoint1?.x?.toFixed(1) || "null"}-${p.controlPoint1?.y?.toFixed(1) || "null"}-${p.controlPoint2?.x?.toFixed(1) || "null"}-${p.controlPoint2?.y?.toFixed(1) || "null"}`).join("-")}`}
           />
 
